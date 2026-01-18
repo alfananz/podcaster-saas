@@ -1,10 +1,4 @@
 import React from 'react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: (string | undefined | null | false)[]) {
-    return twMerge(clsx(inputs));
-}
 
 interface Chapter {
     startTime: number;
@@ -23,8 +17,9 @@ interface ShowNotesPanelProps {
     chapters?: Chapter[];
     resources?: Resource[];
     guestBio?: string;
+    keyTakeaways?: string[];
+    seoTags?: string[];
     onSeek?: (time: number) => void;
-    // Header Props for the shared header (temporarily handled by Parent but UI rendered here if needed)
 }
 
 export function ShowNotesPanel({
@@ -32,6 +27,8 @@ export function ShowNotesPanel({
     aiSynopsis,
     chapters = [],
     resources = [],
+    keyTakeaways = [],
+    seoTags = [],
     onSeek
 }: ShowNotesPanelProps) {
 
@@ -41,100 +38,134 @@ export function ShowNotesPanel({
         return `${min < 10 ? '0' : ''}${min}:${sec < 10 ? '0' : ''}${sec}`;
     };
 
+    // Colors derived from design
+    const colorPrimary = "#ff00ff";
+    const colorCyan = "#00E0FF";
+
     return (
-        <section className="w-1/3 border-l border-white/5 bg-black/40 backdrop-blur-3xl flex flex-col min-w-[400px] h-full">
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
+        <aside className="w-full h-full flex flex-col border-l border-white/10 bg-[#0a0612]/50 backdrop-blur-xl shrink-0 overflow-y-auto">
 
-                {/* SUMMARY CARD */}
-                <div className="relative overflow-hidden rounded-3xl bg-[#1a1625] border border-white/5 p-1">
-                    {/* Glass Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/5 pointer-events-none" />
-
-                    {/* Thumbnail / Header Image Placeholder */}
-                    <div className="h-32 w-full bg-[#13111a] rounded-t-[20px] flex items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-blue-900/20" />
-                        <span className="material-symbols-outlined text-4xl text-white/10">equalizer</span>
-                    </div>
-
-                    <div className="p-6 relative">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-purple-400 text-lg">auto_awesome</span>
-                            <h3 className="text-sm font-bold text-white tracking-wide">AI-Generated Synopsis</h3>
-                        </div>
-
-                        <p className="text-sm leading-relaxed text-white/70 mb-6">
-                            {aiSynopsis || summary || "Generate Show Notes to see a deep dive analysis of this episode."}
-                        </p>
-
-                        <button className="w-full py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-xs font-bold uppercase tracking-widest text-white/50 hover:text-white">
-                            Read Full Analysis
+            {/* Header */}
+            <div className="sticky top-0 z-10 p-6 border-b border-white/5 bg-[#0a0612]/80 backdrop-blur-md">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold tracking-tight text-white">Show Notes</h3>
+                    <div className="flex gap-2">
+                        <button className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors text-white">
+                            <span className="material-symbols-outlined text-[18px]">tune</span>
+                        </button>
+                        <button className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors text-white">
+                            <span className="material-symbols-outlined text-[18px]">close</span>
                         </button>
                     </div>
                 </div>
+                <p className="text-white/40 text-xs font-medium uppercase tracking-[0.1em]">Integrated Glass Edition</p>
+            </div>
 
-                {/* CHAPTERS */}
-                <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-blue-400">toc</span>
-                            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/60">Chapters</h3>
-                        </div>
-                        <div className="px-2 py-1 rounded bg-blue-500/20 border border-blue-500/30">
-                            <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Auto-Chaptering ON</span>
-                        </div>
+            <div className="p-6 space-y-8">
+
+                {/* Summary Section */}
+                <section>
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="material-symbols-outlined text-[#ff00ff]/40 text-[20px]">auto_awesome</span>
+                        <h4 className="text-sm font-bold uppercase tracking-wider text-white/60">Summary</h4>
                     </div>
+                    <div className="bg-white/[0.04] backdrop-blur-[20px] border border-white/10 rounded-xl p-5 group transition-all hover:border-[#ff00ff]/20">
+                        <h5 className="text-lg font-bold mb-2 text-white">Episode Synopsis</h5>
+                        <p className="text-white/70 text-sm leading-relaxed mb-4">
+                            {aiSynopsis || summary || "Generate Show Notes to see a deep dive analysis of this episode."}
+                        </p>
+                        <button className="w-full py-2.5 rounded-lg bg-white/5 text-white text-xs font-bold uppercase tracking-widest hover:bg-[#ff00ff] hover:text-white transition-all">
+                            Read Full Analysis
+                        </button>
+                    </div>
+                </section>
 
-                    <div className="space-y-3">
-                        {chapters.length > 0 ? chapters.map((chapter, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => onSeek?.(chapter.startTime)}
-                                className="w-full text-left group p-4 rounded-2xl bg-[#13111a] border border-white/5 hover:border-white/10 hover:bg-[#1a1625] transition-all flex items-start gap-4"
-                            >
-                                <div className="px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors shrink-0">
-                                    <span className="text-[10px] font-mono font-bold text-blue-400">{formatTime(chapter.startTime)}</span>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-white/80 group-hover:text-white transition-colors mb-1">{chapter.title}</h4>
-                                    {chapter.description && (
-                                        <p className="text-xs text-white/40 line-clamp-1">{chapter.description}</p>
-                                    )}
-                                </div>
-                            </button>
-                        )) : (
-                            <div className="p-4 rounded-2xl bg-[#13111a] border border-white/5 text-center">
-                                <p className="text-xs text-white/30">No chapters generated yet.</p>
+                {/* Chapters Section */}
+                {chapters.length > 0 && (
+                    <section>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[#00E0FF]/40 text-[20px]">list_alt</span>
+                                <h4 className="text-sm font-bold uppercase tracking-wider text-white/60">Chapters</h4>
                             </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* RESOURCES */}
-                {resources.length > 0 && (
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="material-symbols-outlined text-emerald-400">link</span>
-                            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/60">Resources</h3>
+                            <button className="text-[10px] font-bold text-[#00E0FF] tracking-tighter uppercase border border-[#00E0FF]/30 px-2 py-0.5 rounded">Auto-Chaptering ON</button>
                         </div>
-                        <div className="grid gap-2">
-                            {resources.map((res, idx) => (
-                                <a
+                        <div className="space-y-3">
+                            {chapters.map((chapter, idx) => (
+                                <div
                                     key={idx}
-                                    href={res.url || "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-between p-4 rounded-2xl bg-[#13111a] border border-white/5 hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all group"
+                                    onClick={() => onSeek?.(chapter.startTime)}
+                                    className="bg-white/[0.04] backdrop-blur-[20px] border border-white/10 rounded-lg p-4 flex gap-4 items-start group hover:bg-white/[0.07] transition-all cursor-pointer"
                                 >
-                                    <span className="text-sm text-white/60 group-hover:text-white transition-colors">{res.title}</span>
-                                    <span className="material-symbols-outlined text-white/20 text-sm group-hover:text-emerald-400">open_in_new</span>
-                                </a>
+                                    <div className="font-mono text-[11px] font-bold text-[#00E0FF] bg-[#00E0FF]/10 px-2 py-1 rounded border border-[#00E0FF]/20 tracking-tighter shrink-0">
+                                        {formatTime(chapter.startTime)}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-white group-hover:text-[#00E0FF] transition-colors">{chapter.title}</p>
+                                        {chapter.description && (
+                                            <p className="text-xs text-white/40 mt-1 line-clamp-1">{chapter.description}</p>
+                                        )}
+                                    </div>
+                                </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 )}
 
+                {/* Social Highlights (Key Takeaways) */}
+                {keyTakeaways && keyTakeaways.length > 0 && (
+                    <section>
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="material-symbols-outlined text-[#ff00ff] text-[20px] fill-1">star</span>
+                            <h4 className="text-sm font-bold uppercase tracking-wider text-white/60">Social Highlights</h4>
+                        </div>
+
+                        {/* Featured Quote (First Takeaway) */}
+                        <div className="bg-white/[0.04] backdrop-blur-[20px] border-2 border-[#ff00ff] shadow-[0_0_15px_rgba(255,0,255,0.15)] rounded-xl p-5 relative overflow-hidden group">
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#ff00ff]/10 blur-[50px] pointer-events-none"></div>
+                            <div className="flex justify-between items-start mb-4">
+                                <span className="material-symbols-outlined text-[#ff00ff]">format_quote</span>
+                                <div className="flex gap-2">
+                                    <button className="w-7 h-7 bg-white/5 rounded flex items-center justify-center hover:bg-[#ff00ff]/20 transition-colors text-white">
+                                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <button className="w-7 h-7 bg-white/5 rounded flex items-center justify-center hover:bg-[#ff00ff]/20 transition-colors text-white">
+                                        <span className="material-symbols-outlined text-[16px]">ios_share</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-base font-medium leading-relaxed italic text-white/90 mb-4">
+                                "{keyTakeaways[0]}"
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <div className="h-0.5 w-6 bg-[#ff00ff]"></div>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#ff00ff]">Key Takeaway</span>
+                            </div>
+                        </div>
+
+                        {/* Secondary Quotes */}
+                        {keyTakeaways.slice(1, 3).map((takeaway, idx) => (
+                            <div key={idx} className="mt-4 bg-white/[0.04] backdrop-blur-[20px] border border-white/5 rounded-lg p-4 flex items-center justify-between group hover:bg-white/10 transition-colors cursor-pointer">
+                                <p className="text-xs text-white/60 font-medium truncate pr-4">"{takeaway}"</p>
+                                <span className="material-symbols-outlined text-[16px] text-white/20 group-hover:text-[#ff00ff] transition-colors">arrow_forward_ios</span>
+                            </div>
+                        ))}
+                    </section>
+                )}
+
+                {/* Keywords */}
+                {seoTags && seoTags.length > 0 && (
+                    <section className="pb-10">
+                        <div className="flex flex-wrap gap-2">
+                            {seoTags.map((tag, idx) => (
+                                <span key={idx} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-tighter text-white/50 hover:text-white hover:border-white/30 transition-colors">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    </section>
+                )}
             </div>
-        </section>
+        </aside>
     );
 }

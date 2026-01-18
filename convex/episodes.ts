@@ -80,7 +80,7 @@ export const remove = mutation({
 // Internal Mutations
 
 
-export const updateProcessingStage = internalMutation({
+export const updateProcessingStage = mutation({
     args: {
         episodeId: v.id("episodes"),
         stage: v.union(
@@ -105,7 +105,7 @@ export const updateProcessingStage = internalMutation({
     },
 });
 
-export const saveAIResults = internalMutation({
+export const saveAIResults = mutation({
     args: {
         episodeId: v.id("episodes"),
         transcript: v.string(),
@@ -128,7 +128,7 @@ export const saveAIResults = internalMutation({
     },
 });
 
-export const updateEnrichment = internalMutation({
+export const updateEnrichment = mutation({
     args: {
         episodeId: v.id("episodes"),
         generatedTitle: v.optional(v.string()),
@@ -160,5 +160,14 @@ export const updateEnrichment = internalMutation({
             resources: args.resources,
             enrichmentStatus: args.enrichmentStatus as any,
         });
+    },
+});
+
+export const getStorageUrl = query({
+    args: {
+        storageId: v.id("_storage"),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.storage.getUrl(args.storageId);
     },
 });

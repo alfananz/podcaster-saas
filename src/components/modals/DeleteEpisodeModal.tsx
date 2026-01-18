@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 
 interface DeleteEpisodeModalProps {
     isOpen: boolean;
@@ -9,11 +10,17 @@ interface DeleteEpisodeModalProps {
 
 export function DeleteEpisodeModal({ isOpen, onClose, onConfirm, episodeTitle }: DeleteEpisodeModalProps) {
     const [isChecked, setIsChecked] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    if (!isOpen || !mounted) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             {/* Friction-Based Safety Modal */}
             <div className="relative w-full max-w-[520px] rounded-sm overflow-hidden flex flex-col shadow-2xl bg-[#141414]/95 backdrop-blur-xl border border-white/5">
 
@@ -71,8 +78,8 @@ export function DeleteEpisodeModal({ isOpen, onClose, onConfirm, episodeTitle }:
                             onClick={onConfirm}
                             disabled={!isChecked}
                             className={`flex-1 flex min-w-[140px] items-center justify-center rounded h-12 px-5 text-white text-base font-bold leading-normal tracking-[0.015em] shadow-lg shadow-red-600/20 transition-all ${isChecked
-                                    ? 'bg-red-600 hover:brightness-110 active:scale-[0.98] cursor-pointer'
-                                    : 'bg-red-600/50 opacity-50 cursor-not-allowed'
+                                ? 'bg-red-600 hover:brightness-110 active:scale-[0.98] cursor-pointer'
+                                : 'bg-red-600/50 opacity-50 cursor-not-allowed'
                                 }`}
                         >
                             <span className="truncate">Permanently Delete</span>
@@ -87,6 +94,7 @@ export function DeleteEpisodeModal({ isOpen, onClose, onConfirm, episodeTitle }:
                     </p>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

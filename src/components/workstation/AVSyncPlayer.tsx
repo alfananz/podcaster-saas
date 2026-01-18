@@ -2,18 +2,20 @@
 
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import WaveSurfer from "wavesurfer.js";
+import { PlayerControls } from "./PlayerControls";
 
 interface AVSyncPlayerProps {
     videoUrl: string;
     onTimeUpdate?: (time: number) => void;
     comments?: any[]; // Keep any for now to avoid specific type dependency, or define stricter
+    title?: string;
 }
 
 export interface AVSyncPlayerRef {
     seekTo: (time: number) => void;
 }
 
-const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl, onTimeUpdate, comments = [] }, ref) => {
+const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl, onTimeUpdate, comments = [], title }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [hasMounted, setHasMounted] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -95,19 +97,78 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
         // No manual sync needed! 'media' option handles it.
     };
 
+    // --- HIGH FREQUENCY UPDATE LOOP (RAF) ---
+    // Solves "Skipping Words" in Transcript by updating React state at 60fps instead of 4fps (native timeupdate)
+    useEffect(() => {
+        let rafId: number;
+
+        const loop = () => {
+            if (videoElement && !videoElement.paused && !videoElement.ended) {
+                if (onTimeUpdate) onTimeUpdate(videoElement.currentTime);
+                rafId = requestAnimationFrame(loop);
+            }
+        };
+
+        if (isPlaying) {
+            rafId = requestAnimationFrame(loop);
+        }
+
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, [isPlaying, videoElement, onTimeUpdate]);
+
+
+    // --- CONTROLS HANDLERS ---
+    const handleTogglePlay = () => {
+        if (!videoElement) return;
+        if (isPlaying) {
+            videoElement.pause();
+        } else {
+            videoElement.play();
+        }
+    };
+
+    const handleSeek = (time: number) => {
+        if (videoElement) {
+            videoElement.currentTime = time;
+        }
+    };
+
+    const handleVolumeChange = (vol: number) => {
+        if (videoElement) {
+            videoElement.volume = vol;
+        }
+    };
+
+    const handleSkip = (seconds: number) => {
+        if (!videoElement) return;
+        videoElement.currentTime = Math.min(Math.max(videoElement.currentTime + seconds, 0), videoElement.duration);
+    };
+
+    const handleFullscreen = () => {
+        if (container) {
+            if (!document.fullscreenElement) {
+                container.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    };
+
     if (!hasMounted) return <div className="w-full aspect-video bg-white/5 animate-pulse rounded-3xl" />;
 
     return (
-        <div className="flex flex-col gap-6 w-full">
+        <div className="flex flex-col gap-6 w-full group/player">
             <div
-                className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 group"
+                className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 group relative"
             >
                 {/* RAW HTML5 VIDEO */}
                 <video
                     ref={setVideoElement} // Callback Ref
                     src={videoUrl}
                     className="w-full h-full object-contain bg-black"
-                    controls
+                    // controls // REMOVED NATIVE CONTROLS
                     playsInline
                     crossOrigin="anonymous"
                     onTimeUpdate={onTimeUpdateNative}
@@ -122,6 +183,23 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
                         }
                     }}
                 />
+
+                {/* Custom Controls Overlay - Positioned at bottom */}
+                <div className="absolute bottom-6 left-0 right-0 z-30 transition-opacity duration-300 opacity-0 group-hover/player:opacity-100">
+                    <PlayerControls
+                        isPlaying={isPlaying}
+                        currentTime={videoElement?.currentTime || 0}
+                        duration={duration}
+                        volume={videoElement?.volume || 1}
+                        title={title}
+                        onTogglePlay={handleTogglePlay}
+                        onSeek={handleSeek}
+                        onVolumeChange={handleVolumeChange}
+                        onSkipForward={() => handleSkip(10)}
+                        onSkipBack={() => handleSkip(-10)}
+                        onFullscreen={handleFullscreen}
+                    />
+                </div>
             </div>
 
             {/* Waveform */}

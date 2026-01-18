@@ -103,6 +103,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                             videoUrl={videoUrl!}
                             onTimeUpdate={setCurrentTime}
                             comments={comments || []}
+                            title={episode.title}
                         />
 
                         {/* We pass fetched comments or empty array if loading */}
@@ -157,6 +158,8 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                     chapters={episode.chapters}
                                     resources={episode.resources}
                                     guestBio={episode.guestBio}
+                                    keyTakeaways={episode.keyTakeaways}
+                                    seoTags={episode.seoTags}
                                     onSeek={handleSeek}
                                 />
                             )}

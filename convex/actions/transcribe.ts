@@ -1,6 +1,6 @@
 "use node";
 import { action } from "../_generated/server";
-import { internal } from "../_generated/api";
+import { internal, api } from "../_generated/api";
 import { v } from "convex/values";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
@@ -12,13 +12,14 @@ export const generateTranscript = action({
         storageId: v.string(), // Use v.id("_storage") if storageId is ID
     },
     handler: async (ctx, args) => {
-        const file = await ctx.storage.get(args.storageId);
+        const file = await ctx.storage.get(args.storageId as any); // Cast to ID if needed or fix arg type
         if (!file) {
             throw new Error("File not found");
         }
 
         // 1. Transcribe with ElevenLabs
-        await ctx.runMutation(internal.episodes.updateProcessingStage, {
+        // NOTE: 'api' is used because these mutations are now public for self-hosted layout
+        await ctx.runMutation(api.episodes.updateProcessingStage, {
             episodeId: args.episodeId,
             stage: "transcribing",
         });
@@ -32,11 +33,6 @@ export const generateTranscript = action({
             languageCode: "eng",
         });
 
-        // Parse speaker and text data from transcriptJson to match saveAIResults args
-        // Assuming transcriptJson has 'text' field or similar. 
-        // ElevenLabs Scribe v2 response structure usually has 'text' and 'words'. 
-        // We'll pass the whole object as transcriptJson and extracting text if possible.
-        // For now, I'll assume transcriptJson.text exists.
         const transcriptText = (transcriptJson as any).text || JSON.stringify(transcriptJson);
         const words = (transcriptJson as any).words || [];
 
@@ -47,7 +43,7 @@ export const generateTranscript = action({
             speaker: word.speaker_id || "Unknown",
         }));
 
-        await ctx.runMutation(internal.episodes.saveAIResults, {
+        await ctx.runMutation(api.episodes.saveAIResults, {
             episodeId: args.episodeId,
             transcript: transcriptText,
             transcriptJson: transcriptJson,
@@ -56,7 +52,7 @@ export const generateTranscript = action({
         });
 
         // 2. Enrich with Gemini
-        await ctx.runMutation(internal.episodes.updateProcessingStage, {
+        await ctx.runMutation(api.episodes.updateProcessingStage, {
             episodeId: args.episodeId,
             stage: "enriching",
         });
@@ -64,7 +60,7 @@ export const generateTranscript = action({
         try {
             const enrichmentData = await generateShowNotes(transcriptText);
 
-            await ctx.runMutation(internal.episodes.updateEnrichment, {
+            await ctx.runMutation(api.episodes.updateEnrichment, {
                 episodeId: args.episodeId,
                 generatedTitle: enrichmentData.title,
                 summary: enrichmentData.summary,
@@ -72,18 +68,18 @@ export const generateTranscript = action({
                 seoTags: enrichmentData.seoTags,
                 enrichmentStatus: "completed",
             });
-            await ctx.runMutation(internal.episodes.updateProcessingStage, {
+            await ctx.runMutation(api.episodes.updateProcessingStage, {
                 episodeId: args.episodeId,
                 stage: "completed",
                 status: "completed"
             });
         } catch (error) {
             console.error("Enrichment failed", error);
-            await ctx.runMutation(internal.episodes.updateEnrichment, {
+            await ctx.runMutation(api.episodes.updateEnrichment, {
                 episodeId: args.episodeId,
                 enrichmentStatus: "failed",
             });
-            await ctx.runMutation(internal.episodes.updateProcessingStage, {
+            await ctx.runMutation(api.episodes.updateProcessingStage, {
                 episodeId: args.episodeId,
                 stage: "failed", // or completed with partial success
                 status: "action_required"

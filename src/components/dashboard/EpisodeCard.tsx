@@ -25,11 +25,31 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
 
     const isLibrary = variant === 'library';
 
+    // Date Formatter
+    const formatFriendlyDate = (dateStr: string) => {
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr; // Fallback if already formatted
+            const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            return `${datePart} - ${timePart} GMT`;
+        } catch (e) {
+            return dateStr;
+        }
+    };
+
     const CardContent = (
-        <div className={`glass p-6 rounded-3xl group cursor-pointer transition-colors ${status === 'action_required' ? 'border-red-500/20 hover:border-red-500/40' :
-            status === 'completed' ? 'hover:border-green-500/40' :
-                'hover:border-primary/40'
-            } ${isLibrary ? 'rounded-xl p-0 border-none bg-transparent hover:bg-transparent' : ''}`}>
+        <div className={`glass p-6 rounded-3xl group cursor-pointer transition-all duration-500 relative
+            ${status === 'processing' ? 'border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.2)]' : '' /* Glow Base */}
+            ${status === 'action_required' ? 'border-red-500/20 hover:border-red-500/40' :
+                status === 'completed' ? 'hover:border-green-500/40' :
+                    'hover:border-primary/40'
+            } ${isLibrary ? 'rounded-xl p-0 border-none bg-transparent hover:bg-transparent shadow-none' : ''}`}>
+
+            {/* Processing Pulse Overlay for Border */}
+            {!isLibrary && status === 'processing' && (
+                <div className="absolute inset-0 rounded-3xl border border-purple-500/50 animate-pulse pointer-events-none shadow-[0_0_15px_rgba(168,85,247,0.4)]"></div>
+            )}
 
             <div className={`relative w-full aspect-video ${isLibrary ? 'rounded-xl shadow-2xl border border-white/10 mb-3' : 'rounded-2xl mb-6'} overflow-hidden bg-white/5`}>
                 <img
@@ -114,13 +134,13 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
 
                     {!isLibrary && (
                         <p className="text-white/40 text-sm">
-                            {guest ? `Guest: ${guest}` : 'Internal Production'} • {date}
+                            {formatFriendlyDate(date)}
                         </p>
                     )}
 
                     {isLibrary && (
                         <div className="flex items-center justify-between mt-2">
-                            <p className="text-white/40 text-xs font-medium">{status === 'processing' ? 'Uploading...' : date}</p>
+                            <p className="text-white/40 text-xs font-medium">{status === 'processing' ? 'Uploading...' : formatFriendlyDate(date)}</p>
                             <p className="text-white/40 text-xs font-medium">{views || '0'} views</p>
                         </div>
                     )}
@@ -170,7 +190,7 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                         {(status === 'processing' || status === 'action_required') && (
                             <div className="flex items-center gap-4 text-xs text-white/50 pt-2">
                                 {duration && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> {duration}</span>}
-                                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">high_quality</span> 4K Ultra</span>
+                                {/* HD Icon Removed */}
                                 {status === 'action_required' && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">history</span> Pending Review</span>}
                             </div>
                         )}
