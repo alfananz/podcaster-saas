@@ -170,9 +170,44 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
 
     return (
         <section className={cn("flex flex-col h-full min-w-[400px]", className)}>
-            {/* Header removed - handled by parent */}
+            {/* NEW HEADER: Combined Title + Stats */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+                <div className="flex items-center gap-6">
+                    {/* Title */}
+                    <div className="flex items-center gap-3">
+                        <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+                            <span className="material-symbols-outlined text-primary text-[18px]">description</span>
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-white">Live Transcript</span>
+                    </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide relative" ref={scrollRef}>
+                    {/* Separator */}
+                    <div className="h-4 w-px bg-white/10"></div>
+
+                    {/* Speaker Stats (Moved from footer) */}
+                    <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                            {Array.from(speakerMap.map.entries()).slice(0, 3).map(([speaker, color], i) => (
+                                <div key={i} className={cn("size-5 rounded-full border border-[#0a0612] flex items-center justify-center text-[8px] font-bold text-black shadow-lg", color.bg)}>
+                                    {getSpeakerInitial(speaker)}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-white/60 leading-tight">
+                                {speakerMap.count} Speakers
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Actions */}
+                <button className="size-8 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 border border-white/5 transition-colors cursor-pointer group">
+                    <span className="material-symbols-outlined text-[18px] text-white/40 group-hover:text-white transition-colors">download</span>
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide relative" ref={scrollRef}>
                 {blocks.map((block, idx) => {
                     const isActiveBlock = idx === activeBlockIndex;
                     const speakerColor = speakerMap.map.get(block.speaker) || SPEAKER_COLORS[0];
@@ -181,54 +216,46 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
                         <div
                             key={idx}
                             className={cn(
-                                "relative transition-all duration-500 flex flex-col gap-4 border",
-                                isActiveBlock
-                                    ? cn("opacity-100 scale-[1.02] bg-white/5 rounded-3xl p-6", speakerColor.border, speakerColor.shadow)
-                                    : "opacity-40 hover:opacity-100 border-transparent p-4"
+                                "relative transition-all duration-500 flex flex-col gap-3 group/block",
+                                isActiveBlock // Active State
+                                    ? "opacity-100"
+                                    : "opacity-50 hover:opacity-100"
                             )}
-                            style={isActiveBlock ? { borderColor: 'rgba(255,255,255,0.1)' } : {}}
                         >
-                            {/* Timestamp Header (Only for active or hover) */}
-                            <div className="flex items-center justify-between">
-                                <span className={cn(
-                                    "text-[10px] font-bold tracking-widest uppercase",
-                                    isActiveBlock ? speakerColor.text : "text-white/30"
-                                )}>
-                                    {formatTime(block.startTime)}
-                                </span>
-
-                                {isActiveBlock && (
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn("size-1.5 rounded-full animate-pulse", speakerColor.bg)} />
-                                        <span className={cn("text-[10px] font-bold tracking-widest uppercase", speakerColor.text)}>Speaking</span>
-                                    </div>
-                                )}
-                            </div>
-
-
                             <div className="flex gap-4">
-                                <div className="shrink-0 flex flex-col items-center gap-2">
-                                    <div className={cn("size-8 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors",
+                                {/* Left Column: Avatar & Time */}
+                                <div className="shrink-0 flex flex-col items-center gap-2 pt-1">
+                                    <div className={cn("size-8 rounded-full border flex items-center justify-center text-[10px] font-bold transition-all shadow-lg",
                                         isActiveBlock
-                                            ? cn(speakerColor.border, speakerColor.bg, "text-black")
-                                            : "border-white/20 bg-white/5 text-white/60"
+                                            ? cn(speakerColor.border, speakerColor.bg, "text-black scale-110")
+                                            : cn("border-transparent bg-white/5 text-white/40 group-hover/block:border-white/10 group-hover/block:bg-white/10")
                                     )}>
                                         {getSpeakerInitial(block.speaker)}
                                     </div>
                                 </div>
 
-                                <div className="flex-1">
-                                    <h4 className={cn(
-                                        "text-[10px] font-bold uppercase tracking-widest mb-3",
-                                        isActiveBlock ? "text-white" : "text-white/40"
-                                    )}>
-                                        {formatSpeaker(block.speaker)}
-                                    </h4>
+                                {/* Right Column: Content */}
+                                <div className={cn(
+                                    "flex-1 p-5 rounded-2xl border transition-all duration-500",
+                                    isActiveBlock
+                                        ? cn("bg-white/5 border-white/5 shadow-[0_4px_20px_rgba(0,0,0,0.2)]", speakerColor.border + "/30")
+                                        : "bg-transparent border-transparent"
+                                )}>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h4 className={cn(
+                                            "text-[10px] font-black uppercase tracking-widest",
+                                            isActiveBlock ? speakerColor.text : "text-white/40"
+                                        )}>
+                                            {formatSpeaker(block.speaker)}
+                                        </h4>
+                                        <span className="text-[10px] font-medium text-white/20 font-mono">
+                                            {formatTime(block.startTime)}
+                                        </span>
+                                    </div>
 
-                                    <p className="text-base leading-relaxed">
+                                    <p className="text-base leading-7 font-medium text-white/80">
                                         {block.words.map((word, wordIdx) => {
                                             // Optimization: Only check logic if block is active
-                                            // Gap-Filling: Highlight until the NEXT word starts
                                             let isWordActive = false;
                                             if (isActiveBlock) {
                                                 const nextWord = block.words[wordIdx + 1];
@@ -241,10 +268,10 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
                                                     key={wordIdx}
                                                     onClick={() => onSeek?.(word.start)}
                                                     className={cn(
-                                                        "transition-all duration-75 cursor-pointer rounded px-0.5 inline-block mx-[1px]",
+                                                        "transition-all duration-100 cursor-pointer rounded px-0.5 inline-block mx-[1px]",
                                                         isWordActive
-                                                            ? cn("font-bold scale-105", speakerColor.highlight)
-                                                            : isActiveBlock ? "text-white/90 hover:text-white" : "text-white/60 hover:text-white"
+                                                            ? cn("scale-110 z-10 relative", speakerColor.highlight, "bg-white/5") // Restored Color + Added subtle bg + Removed font-bold
+                                                            : isActiveBlock ? "text-white hover:text-white hover:bg-white/10" : "text-white/60 hover:text-white"
                                                     )}
                                                 >
                                                     {word.text}
@@ -257,32 +284,8 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
                         </div>
                     );
                 })}
-            </div>
-
-            <div className="p-6 bg-black/40 border-t border-white/5 backdrop-blur-xl mt-auto z-10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        {/* Dynamic Speaker Count */}
-                        <div className="flex -space-x-2">
-                            {Array.from(speakerMap.map.entries()).slice(0, 3).map(([speaker, color], i) => (
-                                <div key={i} className={cn("size-6 rounded-full border border-black flex items-center justify-center text-[8px] font-bold text-black", color.bg)}>
-                                    {getSpeakerInitial(speaker)}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-bold text-white leading-none">
-                                {speakerMap.count} Speakers Identified
-                            </span>
-                            <span className="text-[10px] font-semibold text-white/40 tracking-wider">
-                                CONFIDENCE: 98%
-                            </span>
-                        </div>
-                    </div>
-                    <button className="size-9 rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 border border-white/5 transition-colors cursor-pointer group">
-                        <span className="material-symbols-outlined text-[20px] text-white/40 group-hover:text-white transition-colors">download</span>
-                    </button>
-                </div>
+                {/* Padding at bottom for scroll */}
+                <div className="h-20"></div>
             </div>
         </section>
     );

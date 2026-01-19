@@ -231,19 +231,6 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
 
                                 {/* 2. Live Transcript */}
                                 <div className="glass-panel rounded-3xl flex-1 flex flex-col min-h-0 relative border border-white/5 bg-white/[0.02]">
-                                    <div className="flex items-center justify-between p-6 border-b border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <span className="material-symbols-outlined text-primary">description</span>
-                                            <span className="text-xs font-bold uppercase tracking-widest">Live Transcript</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Auto-Scroll</span>
-                                            <div className="w-8 h-4 bg-primary/20 rounded-full relative p-0.5 border border-primary/30">
-                                                <div className="size-2.5 bg-primary rounded-full absolute right-0.5"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-
                                     <div className="flex-1 overflow-hidden relative">
                                         <TranscriptPanel
                                             segments={(episode as any).segments || []}
@@ -251,7 +238,6 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                             onSeek={handleSeek}
                                             className="h-full w-full border-none bg-transparent p-0"
                                         />
-                                        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0a0612] to-transparent pointer-events-none rounded-b-3xl"></div>
                                     </div>
                                 </div>
                             </section>
