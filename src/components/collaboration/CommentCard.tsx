@@ -38,85 +38,79 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, isThre
         setIsEditing(false);
     };
 
-    // Styling constants derived from the "Minimalist Pro" design
-    const isMe = comment.user.name === "Me"; // Mock logic for "Me" styling
+    // Styling: "Bubble" Design
+    const isMe = comment.user.name === "Me";
 
+    // Styling: "Technical Audit" Design - Larger & Interactive
     return (
-        <div className={`flex flex-col gap-1.5 pl-4 transition-all ${isMe
-            ? 'border-l-[2px] border-[#ff3399] bg-[#ff3399]/5 py-2 -mx-2 px-4 rounded-r-lg'
-            : 'border-l-[2px] border-white/20 hover:border-white/40'
-            }`}>
-            {/* Header: Name + Time */}
-            <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold tracking-wide ${isMe ? 'text-[#ff3399]' : 'text-white'}`}>
-                    {comment.user.name.toUpperCase()}
-                </span>
-                <span className="text-[10px] text-white/30 font-medium">{timeAgo(comment._creationTime)}</span>
+        <div
+            onClick={() => onSeek(comment.timestamp)}
+            className="p-5 bg-white/5 rounded-2xl border border-white/5 group hover:border-white/10 hover:bg-white/10 transition-all w-full animate-in fade-in slide-in-from-bottom-2 duration-500 cursor-pointer"
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="size-8 rounded-xl bg-cover border border-white/10 shadow-sm" style={{
+                        backgroundImage: `url(${comment.user.avatar || `https://ui-avatars.com/api/?name=${comment.user.name}&background=random`})`
+                    }}></div>
+                    <span className="text-xs font-bold text-white tracking-wide">{comment.user.name}</span>
+                </div>
+                {isMe ? (
+                    <span className="text-[10px] font-mono text-primary bg-primary/10 px-2 py-1 rounded-md font-bold shadow-sm shadow-primary/5">
+                        {timeAgo(comment._creationTime)}
+                    </span>
+                ) : (
+                    <span className="text-[10px] font-mono text-white/40 bg-white/5 px-2 py-1 rounded-md">
+                        {timeAgo(comment._creationTime)}
+                    </span>
+                )}
             </div>
 
             {/* Content or Edit Mode */}
             {isEditing ? (
-                <div className="flex flex-col gap-2 mt-1">
+                <div className="flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
                     <textarea
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-[13px] text-white focus:outline-none focus:border-[#ff3399]/50"
-                        rows={3}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-primary/50 min-h-[80px]"
                         autoFocus
                     />
-                    <div className="flex items-center gap-2 justify-end">
-                        <button
-                            onClick={handleCancelEdit}
-                            className="text-[10px] text-white/40 hover:text-white uppercase tracking-wider font-bold px-2"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSaveEdit}
-                            className="text-[10px] bg-[#ff3399]/20 text-[#ff3399] hover:bg-[#ff3399]/40 border border-[#ff3399]/20 px-3 py-1 rounded uppercase tracking-wider font-bold transition-colors"
-                        >
-                            Save
-                        </button>
+                    <div className="flex items-center gap-2 justify-end mt-1">
+                        <button onClick={handleCancelEdit} className="text-[10px] font-bold text-white/40 hover:text-white uppercase tracking-widest px-2">CANCEL</button>
+                        <button onClick={handleSaveEdit} className="text-[10px] font-bold text-primary hover:text-primary/80 uppercase tracking-widest bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20">SAVE</button>
                     </div>
                 </div>
             ) : (
-                <p className="text-[13px] leading-relaxed text-white/70 font-light whitespace-pre-wrap">
+                <p className="text-[13px] text-white/70 leading-relaxed font-normal whitespace-pre-wrap">
                     {comment.text}
                 </p>
             )}
 
             {/* Actions Footer */}
             {!isEditing && (
-                <div className="flex items-center gap-4 mt-1">
+                <div className="mt-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center border-t border-white/5 pt-3">
                     {/* Like Button */}
                     <button
-                        onClick={() => toggleLike({ commentId: comment._id })}
-                        className="flex items-center gap-1.5 group"
+                        onClick={(e) => { e.stopPropagation(); toggleLike({ commentId: comment._id }); }}
+                        className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-white/5 transition-colors ${comment.likes > 0 ? 'text-primary' : 'text-white/30 hover:text-white'}`}
                     >
-                        <span className={`material-symbols-outlined text-[16px] transition-colors ${comment.likes > 0 ? 'text-[#ff3399]' : 'text-white/30 group-hover:text-[#ff3399]'}`}>thumb_up</span>
-                        <span className={`text-[11px] transition-colors ${comment.likes > 0 ? 'text-white' : 'text-white/30 group-hover:text-white'}`}>{comment.likes || 0}</span>
+                        {comment.likes > 0 && <span className="material-symbols-outlined text-[12px]">favorite</span>}
+                        {comment.likes > 0 ? comment.likes : 'LIKE'}
                     </button>
 
-                    {/* Reply */}
                     {!isMe && (
-                        <button onClick={() => onReply(comment._id)} className="text-[11px] text-white/30 hover:text-white font-medium transition-colors">REPLY</button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onReply(comment._id); }}
+                            className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors"
+                        >
+                            REPLY
+                        </button>
                     )}
 
-                    {/* Owner Actions */}
                     {isMe && (
                         <>
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="text-[11px] text-white/30 hover:text-white font-medium transition-colors"
-                            >
-                                EDIT
-                            </button>
-                            <button
-                                onClick={() => onDelete(comment._id)}
-                                className="text-[11px] text-white/30 hover:text-red-400 font-medium transition-colors"
-                            >
-                                DELETE
-                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors">EDIT</button>
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(comment._id); }} className="text-[10px] font-bold text-white/30 hover:text-red-400 uppercase tracking-widest hover:bg-red-500/10 py-1 px-2 rounded-lg transition-colors">RESOLVE</button>
                         </>
                     )}
                 </div>

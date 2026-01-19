@@ -1,6 +1,6 @@
 "use client";
 import Link from 'next/link';
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useModal } from '@/context/ModalContext';
@@ -11,10 +11,11 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 
 export function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const { openModal } = useModal();
 
     const links = [
-        { href: "/", label: "Dashboard", icon: "dashboard" },
+        { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
         { href: "/episodes", label: "Episodes", icon: "video_library" },
         { href: "#", label: "Templates", icon: "auto_awesome_motion" },
         { href: "/media", label: "Media Library", icon: "folder_open" },
@@ -95,6 +96,14 @@ export function Sidebar() {
                         <span className="material-symbols-outlined">settings</span>
                     </button>
                 </div>
+
+                <button
+                    onClick={() => router.push("/")}
+                    className="flex items-center gap-3 px-4 py-3 rounded-2xl text-white/40 hover:bg-white/5 hover:text-white transition-all group w-full cursor-pointer mt-2"
+                >
+                    <span className="material-symbols-outlined transition-colors group-hover:text-red-400">logout</span>
+                    <span className="font-medium group-hover:text-red-400">Log Out</span>
+                </button>
             </div>
         </aside>
     );

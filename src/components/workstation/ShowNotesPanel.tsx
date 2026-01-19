@@ -42,40 +42,41 @@ export function ShowNotesPanel({
     const colorPrimary = "#ff00ff";
     const colorCyan = "#00E0FF";
 
+    const [isCopied, setIsCopied] = React.useState(false);
+
     return (
         <aside className="w-full h-full flex flex-col border-l border-white/10 bg-[#0a0612]/50 backdrop-blur-xl shrink-0 overflow-y-auto">
 
             {/* Header */}
-            <div className="sticky top-0 z-10 p-6 border-b border-white/5 bg-[#0a0612]/80 backdrop-blur-md">
-                <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-bold tracking-tight text-white">Show Notes</h3>
-                    <div className="flex gap-2">
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors text-white">
-                            <span className="material-symbols-outlined text-[18px]">tune</span>
-                        </button>
-                        <button className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors text-white">
-                            <span className="material-symbols-outlined text-[18px]">close</span>
-                        </button>
-                    </div>
-                </div>
-                <p className="text-white/40 text-xs font-medium uppercase tracking-[0.1em]">Integrated Glass Edition</p>
-            </div>
+
 
             <div className="p-6 space-y-8">
 
                 {/* Summary Section */}
                 <section>
-                    <div className="flex items-center gap-2 mb-4">
-                        <span className="material-symbols-outlined text-[#ff00ff]/40 text-[20px]">auto_awesome</span>
-                        <h4 className="text-sm font-bold uppercase tracking-wider text-white/60">Summary</h4>
-                    </div>
+
                     <div className="bg-white/[0.04] backdrop-blur-[20px] border border-white/10 rounded-xl p-5 group transition-all hover:border-[#ff00ff]/20">
                         <h5 className="text-lg font-bold mb-2 text-white">Episode Synopsis</h5>
                         <p className="text-white/70 text-sm leading-relaxed mb-4">
                             {aiSynopsis || summary || "Generate Show Notes to see a deep dive analysis of this episode."}
                         </p>
-                        <button className="w-full py-2.5 rounded-lg bg-white/5 text-white text-xs font-bold uppercase tracking-widest hover:bg-[#ff00ff] hover:text-white transition-all">
-                            Read Full Analysis
+                        <button
+                            onClick={() => {
+                                const text = aiSynopsis || summary || "Generate Show Notes to see a deep dive analysis of this episode.";
+                                navigator.clipboard.writeText(text);
+                                setIsCopied(true);
+                                setTimeout(() => setIsCopied(false), 2000);
+                            }}
+                            className="w-full py-2.5 rounded-lg bg-white/5 text-white text-xs font-bold uppercase tracking-widest hover:bg-[#ff00ff] hover:text-white transition-all flex items-center justify-center gap-2"
+                        >
+                            {isCopied ? (
+                                <>
+                                    <span className="material-symbols-outlined text-[16px]">check</span>
+                                    Copied!
+                                </>
+                            ) : (
+                                "Copy Synopsis"
+                            )}
                         </button>
                     </div>
                 </section>

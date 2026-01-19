@@ -42,15 +42,8 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
         <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/20 backdrop-blur-md sticky top-0 z-10 w-full">
             <div className="flex items-center gap-6">
                 <div className="flex flex-col">
-                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40 mb-1">
-                        <span>Projects</span>
-                        <span className="material-symbols-outlined text-[12px]">chevron_right</span>
-                        <span>{season}</span>
-                        <span className="material-symbols-outlined text-[12px]">chevron_right</span>
-                        <span className="text-white/60">{episodeNumber}</span>
-                    </div>
                     <div className="flex items-center gap-3">
-                        <h2 className="text-lg font-bold tracking-tight text-white">{title}</h2>
+                        <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
                         {status === 'processing' && (
                             <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-400 uppercase tracking-wider animate-pulse">Processing</span>
                         )}

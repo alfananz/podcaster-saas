@@ -105,7 +105,7 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
     const isRevisionMode = !!activeRevisionBatch;
 
     return (
-        <section className="mt-8 w-full">
+        <section className="mt-8 w-full pl-5">
             {/* Obsidian Glass Thread Popover */}
             <div className={`w-full rounded-xl flex flex-col overflow-hidden backdrop-blur-md border shadow-[0_0_40px_-10px_rgba(255,51,153,0.15)] relative transition-all duration-500
                 ${isRevisionMode ? 'bg-red-500/10 border-red-500/30' : 'bg-[#1a1c20]/85 border-white/5'}
@@ -153,7 +153,7 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                         <div className="relative flex items-center">
                             <textarea
                                 className="w-full bg-transparent border-none focus:ring-0 text-[13px] text-white placeholder:text-white/20 resize-none p-0 pr-10 appearance-none focus:outline-none placeholder:font-light"
-                                placeholder="Add a technical note..."
+                                placeholder="Add your comment here..."
                                 rows={1}
                                 value={newCommentText}
                                 onChange={(e) => setNewCommentText(e.target.value)}
@@ -184,11 +184,6 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
 
                     {threads.topLevel.map((comment) => (
                         <div key={comment._id} className="flex flex-col gap-4">
-                            {/* Timestamp Link for the Thread */}
-                            <div className="flex items-center gap-2 opacity-50 hover:opacity-100 transition-opacity w-fit cursor-pointer" onClick={() => onSeek(comment.timestamp)}>
-                                <span className="material-symbols-outlined text-[14px] text-[#ff3399]">timer</span>
-                                <span className="text-[10px] font-mono text-[#ff3399]">{formatTime(comment.timestamp)}</span>
-                            </div>
 
                             <CommentCard
                                 comment={comment}
