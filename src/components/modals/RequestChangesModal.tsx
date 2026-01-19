@@ -32,10 +32,7 @@ export function RequestChangesModal({ isOpen, onClose, onSubmit }: RequestChange
                 <div className="flex items-center justify-between px-8 pt-8 pb-4">
                     <div className="flex flex-col">
                         <h2 className="text-white text-2xl font-bold tracking-[0.1em] uppercase">Request Changes</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="material-symbols-outlined text-[#ff4db5] text-xs" style={{ fontSize: '14px' }}>timer</span>
-                            <p className="text-[#bc9aae] text-[10px] font-medium tracking-[0.2em] uppercase">Segment: --:--</p>
-                        </div>
+
                     </div>
                     <button
                         onClick={onClose}
@@ -71,16 +68,7 @@ export function RequestChangesModal({ isOpen, onClose, onSubmit }: RequestChange
                 </div>
 
                 {/* Metadata tags */}
-                <div className="px-8 pb-8 flex gap-3">
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-white/5">
-                        <span className="material-symbols-outlined text-[14px] text-[#ff4db5]">equalizer</span>
-                        <span className="text-[10px] uppercase tracking-widest text-white/60">Audio Fix</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/5 bg-white/5">
-                        <span className="material-symbols-outlined text-[14px] text-[#ff4db5]">auto_fix</span>
-                        <span className="text-[10px] uppercase tracking-widest text-white/60">High Priority</span>
-                    </div>
-                </div>
+
 
                 {/* Full-Width Action Button */}
                 <button

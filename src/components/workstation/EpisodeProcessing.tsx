@@ -78,7 +78,7 @@ export function EpisodeProcessing({ stage = 'queued', progress, title, isResumin
                                 Spinning up your episode...
                             </h3>
                             <p className="text-white/40 text-sm font-mono">
-                                Loading high-fidelity assets
+                                Just a moment - we're getting your episode ready!
                             </p>
                         </div>
                     </div>

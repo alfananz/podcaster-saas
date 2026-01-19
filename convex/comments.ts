@@ -2,12 +2,31 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 export const list = query({
-    args: { episodeId: v.id("episodes") },
+    args: {
+        episodeId: v.id("episodes"),
+        versionId: v.optional(v.id("versions"))
+    },
     handler: async (ctx, args) => {
-        return await ctx.db
+        let q = ctx.db
             .query("comments")
-            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
-            .collect();
+            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId));
+
+        if (args.versionId) {
+            // If version is specified, filtered by version
+            // Note: Schema has index by_episode_version for optimization if we used it directly
+            // But since we are chaining, we might need to use the combined index or filter.
+            // Given the Convex query limitations on multiple indexes, let's use the specific index if version is present.
+            return await ctx.db.query("comments")
+                .withIndex("by_episode_version", (q) => q.eq("episodeId", args.episodeId).eq("versionId", args.versionId))
+                .collect();
+        }
+
+        // Return global comments (those without versionId) OR all comments?
+        // User request: "When I switch to v1, I should see only the comments made on v1."
+        // Strategy: If no versionId passed (legacy view?), return all? 
+        // Or if we want to show "global" comments?
+        // Let's assume if versionId is NOT passed, we return comments that have NO versionId (legacy/global comments).
+        return await q.filter(q => q.eq(q.field("versionId"), undefined)).collect();
     },
 });
 
@@ -21,6 +40,7 @@ export const create = mutation({
             avatar: v.string(),
         }),
         parentId: v.optional(v.id("comments")),
+        versionId: v.optional(v.id("versions")),
     },
     handler: async (ctx, args) => {
         await ctx.db.insert("comments", {
@@ -30,6 +50,7 @@ export const create = mutation({
             user: args.user,
             isResolved: false,
             parentId: args.parentId,
+            versionId: args.versionId,
             likes: 0,
         });
     },

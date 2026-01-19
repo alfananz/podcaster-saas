@@ -13,6 +13,7 @@ export default defineSchema({
         issues: v.optional(v.string()),
         storageId: v.optional(v.id("_storage")),
         // Workstation Fields
+        currentVersionId: v.optional(v.id("versions")), // Points to the active "Head"
         videoUrl: v.optional(v.string()),
         audioUrl: v.optional(v.string()),
 
@@ -57,6 +58,19 @@ export default defineSchema({
             v.literal("revision_requested")
         )),
     }),
+    versions: defineTable({
+        episodeId: v.id("episodes"),
+        versionNumber: v.number(),
+        name: v.string(), // "v1.0", "Revision 1", etc.
+        storageId: v.id("_storage"),
+        videoUrl: v.optional(v.string()),
+        authorId: v.optional(v.string()),
+        status: v.union(v.literal("processing"), v.literal("active"), v.literal("archived")),
+        changeLog: v.optional(v.string()), // "Fixed audio sync issues"
+        uploadTime: v.number(),
+    })
+        .index("by_episode", ["episodeId"])
+        .index("by_episode_version", ["episodeId", "versionNumber"]),
     assets: defineTable({
         storageId: v.string(),
         type: v.union(v.literal("video"), v.literal("audio"), v.literal("image"), v.literal("pdf"), v.literal("archive")),
@@ -77,6 +91,7 @@ export default defineSchema({
         .index("by_type", ["type"]),
     revision_batches: defineTable({
         episodeId: v.id("episodes"),
+        versionId: v.optional(v.id("versions")), // [NEW] Scope to version
         authorId: v.string(),
         note: v.string(),
         status: v.union(v.literal("open"), v.literal("resolved")),
@@ -86,6 +101,7 @@ export default defineSchema({
         .index("by_status", ["status"]),
     comments: defineTable({
         episodeId: v.id("episodes"),
+        versionId: v.optional(v.id("versions")), // Link to specific version
         text: v.string(),
         timestamp: v.number(), // in seconds
         user: v.object({
@@ -100,7 +116,9 @@ export default defineSchema({
     })
         .index("by_episode", ["episodeId"])
         .index("by_parent", ["parentId"])
-        .index("by_batch", ["revisionBatchId"]),
+        .index("by_batch", ["revisionBatchId"])
+        .index("by_version", ["versionId"])
+        .index("by_episode_version", ["episodeId", "versionId"]),
     transcripts: defineTable({
         episodeId: v.id("episodes"),
         transcriptJson: v.any(),

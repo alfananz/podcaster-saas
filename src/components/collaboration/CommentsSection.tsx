@@ -6,12 +6,13 @@ import { CommentCard } from './CommentCard';
 
 interface CommentsSectionProps {
     episodeId: Id<"episodes">;
+    versionId?: Id<"versions">; // [NEW] Link to specific version
     currentTime: number;
     onSeek: (time: number) => void;
     comments?: any[]; // Using any[] to match AVSyncPlayer for now, or use Doc<"comments">[]
 }
 
-export function CommentsSection({ episodeId, currentTime, onSeek, comments }: CommentsSectionProps) {
+export function CommentsSection({ episodeId, versionId, currentTime, onSeek, comments }: CommentsSectionProps) {
     // Removed internal useQuery(api.comments.list) as it passes via props now
     const createComment = useMutation(api.comments.create);
     const editComment = useMutation(api.comments.edit);
@@ -64,6 +65,7 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
 
         await createComment({
             episodeId,
+            versionId, // [NEW] Pass versionId
             text: newCommentText,
             timestamp: currentTime,
             user: {
@@ -105,14 +107,16 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
     const isRevisionMode = !!activeRevisionBatch;
 
     return (
-        <section className="mt-8 w-full pl-5">
+
+        <section className="w-full h-full pl-5 pt-8 pb-4">
             {/* Obsidian Glass Thread Popover */}
-            <div className={`w-full rounded-xl flex flex-col overflow-hidden backdrop-blur-md border shadow-[0_0_40px_-10px_rgba(255,51,153,0.15)] relative transition-all duration-500
-                ${isRevisionMode ? 'bg-red-500/10 border-red-500/30' : 'bg-[#1a1c20]/85 border-white/5'}
+            {/* Obsidian Glass Thread Popover - Transparent Update */}
+            <div className={`w-full h-full rounded-xl flex flex-col overflow-hidden relative transition-all duration-500
+                ${isRevisionMode ? 'bg-red-500/10 border border-red-500/30 backdrop-blur-md' : 'bg-transparent'}
             `}>
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+                <div className="flex items-center justify-between px-5 py-4">
                     <div className="flex flex-col">
                         {isRevisionMode ? (
                             <div className="flex items-center gap-2 mb-1">
@@ -141,7 +145,7 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                     <div className="px-5 py-4 bg-red-500/5 border-b border-red-500/10">
                         <p className="text-xs text-red-200/80 uppercase tracking-widest mb-2 font-bold">Client Instructions</p>
                         <div className="text-sm text-white italic pl-3 border-l-2 border-red-500/50">
-                            "{activeRevisionBatch.note}"
+                            "{activeRevisionBatch?.note}"
                         </div>
                     </div>
                 )}
@@ -149,10 +153,10 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
 
                 {/* Input Area (Top) */}
                 {!isRevisionMode && (
-                    <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-                        <div className="relative flex items-center">
+                    <div className="p-4">
+                        <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl px-2 py-1 focus-within:bg-white/10 focus-within:border-primary/50 transition-all duration-300">
                             <textarea
-                                className="w-full bg-transparent border-none focus:ring-0 text-[13px] text-white placeholder:text-white/20 resize-none p-0 pr-10 appearance-none focus:outline-none placeholder:font-light"
+                                className="w-full bg-transparent border-none focus:ring-0 text-[13px] text-white placeholder:text-white/30 resize-none p-2 pr-10 appearance-none focus:outline-none placeholder:font-light"
                                 placeholder="Add your comment here..."
                                 rows={1}
                                 value={newCommentText}
@@ -175,7 +179,7 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                 )}
 
                 {/* Scrollable Comment Area */}
-                <div className="flex flex-col gap-6 p-5 overflow-y-auto max-h-[450px] scrollbar-thin scrollbar-thumb-pink-500/30 scrollbar-track-transparent">
+                <div className="flex-1 flex flex-col gap-6 p-5 pb-10 overflow-y-auto min-h-0 custom-scrollbar">
                     {threads.topLevel.length === 0 && (
                         <div className="text-center py-8 text-white/20 italic text-sm">
                             {isRevisionMode ? "All tasks completed!" : "No notes yet. Add one above."}
@@ -234,12 +238,12 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
 
                 {/* Footer: Complete Button (Only for Revision Mode) */}
                 {isRevisionMode && (
-                    <div className="p-4 border-t border-red-500/20 bg-red-900/10">
+                    <div className="p-4 border-t border-red-500/10 bg-red-900/5 backdrop-blur-sm">
                         <button
                             onClick={handleCompleteRevision}
-                            className="w-full py-4 rounded-lg bg-green-500/20 hover:bg-green-500/30 border border-green-500/50 text-green-400 font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 group"
+                            className="w-full py-3 rounded-lg bg-green-500/20 hover:bg-green-500/30 border border-green-500/50 text-green-400 text-xs font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 group shadow-[0_0_20px_rgba(34,197,94,0.1)] hover:shadow-[0_0_30px_rgba(34,197,94,0.2)]"
                         >
-                            <span className="material-symbols-outlined group-hover:scale-110 transition-transform">check_circle</span>
+                            <span className="material-symbols-outlined group-hover:scale-110 transition-transform text-[18px]">check_circle</span>
                             Mark Revision Complete
                         </button>
                     </div>

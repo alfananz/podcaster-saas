@@ -21,6 +21,7 @@ import type * as files from "../files.js";
 import type * as media from "../media.js";
 import type * as revisions from "../revisions.js";
 import type * as users from "../users.js";
+import type * as versions from "../versions.js";
 
 import type {
   ApiFromModules,
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   media: typeof media;
   revisions: typeof revisions;
   users: typeof users;
+  versions: typeof versions;
 }>;
 
 /**

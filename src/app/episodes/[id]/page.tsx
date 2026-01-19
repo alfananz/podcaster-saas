@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useRef } from "react";
+import { use, useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -13,30 +13,66 @@ import { CommentsSection } from "@/components/collaboration/CommentsSection";
 import { RequestChangesModal } from "@/components/modals/RequestChangesModal";
 import { RevisionHistory } from "@/components/workstation/RevisionHistory";
 import { EpisodeProcessing } from "@/components/workstation/EpisodeProcessing";
+import { VersionController } from "@/components/workstation/VersionController"; // [NEW]
 
 export default function EpisodeDetailPage({ params }: { params: Promise<{ id: string }> }) {
     // 1. Unwrap Params (Next.js 16)
     const { id } = use(params);
 
     // 2. Fetch Data
-    const episode = useQuery(api.episodes.get, { id: id as string }); // Id handling fixed in backend to string
+    const episode = useQuery(api.episodes.get, { id: id as string });
 
-    // 3. Fetch URL (Only run if we have a storageId)
-    // Using explicit check to avoid undefined query
+    // [NEW] Fetch Versions
+    const versions = useQuery(api.versions.list, episode ? { episodeId: episode._id } : "skip");
+
+    // 3. State Integration
+    const [currentTime, setCurrentTime] = useState(0);
+    const [activeTab, setActiveTab] = useState<'comments' | 'shownotes' | 'history'>('comments');
+    const [isClientReady, setIsClientReady] = useState(false);
+    const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
+    // [NEW] Selected Version State
+    const [selectedVersionId, setSelectedVersionId] = useState<Id<"versions"> | undefined>(undefined);
+    // [NEW] Version Switching State
+    const [isSwitchingVersion, setIsSwitchingVersion] = useState(false);
+
+    const playerRef = useRef<AVSyncPlayerRef>(null);
+
+    // [NEW] Effect to set default version when episode/versions load
+    useEffect(() => {
+        if (episode?.currentVersionId && !selectedVersionId) {
+            setSelectedVersionId(episode.currentVersionId);
+        } else if (versions && versions.length > 0 && !selectedVersionId && !episode?.currentVersionId) {
+            // Fallback: If no currentVersionId set on episode, default to latest version if available
+            setSelectedVersionId(versions[0]._id);
+        }
+    }, [episode, versions, selectedVersionId]);
+
+    // [NEW] Derive Active Version Data
+    const activeVersion = versions?.find(v => v._id === selectedVersionId);
+
+    // Determine Storage ID: Favor selectedVersion, fallback to episode (legacy)
+    const effectiveStorageId = activeVersion?.storageId || episode?.storageId;
+
+    // 4. Fetch URL (Only run if we have a storageId)
     const videoUrl = useQuery(api.files.getUrl,
-        (episode && episode.storageId) ? { storageId: episode.storageId } : "skip"
+        effectiveStorageId ? { storageId: effectiveStorageId } : "skip"
     );
 
     const comments = useQuery(api.comments.list,
+        episode ? { episodeId: episode._id, versionId: selectedVersionId } : "skip"
+    );
+
+    const activeRevision = useQuery(api.episodes.getActiveRevisionBatch,
         episode ? { episodeId: episode._id } : "skip"
     );
 
-    // 4. State Integration
-    const [currentTime, setCurrentTime] = useState(0);
-    const [activeTab, setActiveTab] = useState<'comments' | 'shownotes' | 'history'>('comments');
-    const [isClientReady, setIsClientReady] = useState(false); // NEW: Client Readiness Gate
-    const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
-    const playerRef = useRef<AVSyncPlayerRef>(null);
+    // [NEW] Filter Active Revision Visibility
+    // Only show the revision ticket if it belongs to the CURRENTLY selected version.
+    // Legacy batches (undefined versionId) are shown on all versions (or you could restrict them).
+    const visibleRevision = activeRevision && (
+        !activeRevision.versionId || // Legacy: Show everywhere
+        activeRevision.versionId === selectedVersionId // Strict: Match version
+    ) ? activeRevision : null;
 
     // Mutation
     const requestRevision = useMutation(api.episodes.requestRevision);
@@ -48,9 +84,26 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
 
     const handleRequestRevision = async (feedback: string) => {
         if (!id) return;
-        await requestRevision({ episodeId: id as Id<"episodes">, feedback });
-        setIsRevisionModalOpen(false);
-        console.log("Revision Requested:", feedback);
+        try {
+            await requestRevision({
+                episodeId: id as Id<"episodes">,
+                versionId: selectedVersionId, // [NEW] Pass version context
+                feedback
+            });
+            setIsRevisionModalOpen(false);
+            console.log("Revision Requested:", feedback);
+        } catch (error: any) {
+            console.error("Failed to request revision:", error);
+            // Simple alert for now, or use a toast if available
+            alert(error.message || "Failed to submit revision request.");
+        }
+    };
+
+    // [NEW] Handle Version Switch
+    const handleVersionSelect = (verId: Id<"versions">) => {
+        if (verId === selectedVersionId) return;
+        setIsSwitchingVersion(true);
+        setSelectedVersionId(verId);
     };
 
     // 4. THE LOADING GATE
@@ -99,20 +152,46 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                     />
                 </div>
 
+                {/* [NEW] VERSION SWITCHING OVERLAY */}
+                <div
+                    className={`absolute inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center transition-opacity duration-500 pointer-events-none ${isSwitchingVersion ? 'opacity-100' : 'opacity-0'}`}
+                >
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="relative size-16">
+                            <div className="absolute inset-0 rounded-full border-4 border-white/10"></div>
+                            <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                            <div className="absolute inset-4 rounded-full border-4 border-accent-cyan/50 border-b-transparent animate-spin-reverse"></div>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                            <h3 className="text-xl font-bold tracking-widest text-white uppercase">Loading Version</h3>
+                            <p className="text-primary text-xs font-mono tracking-[0.2em] animate-pulse">Syncing Timeline Data...</p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* 2. MAIN WORKSTATION (Rendered conditionally) */}
                 {/* We render the workstation IF isBackendReady is true so the Player can mount and load. */}
                 {isBackendReady && (
                     <div className={`flex flex-col h-full w-full transition-opacity duration-1000 delay-300 ${isClientReady ? 'opacity-100' : 'opacity-0'}`}>
                         {/* Header */}
-                        <EditorHeader
-                            episodeId={episode._id}
-                            title={episode.title}
-                            status={episode.status}
-                            processingStage={episode.processingStage}
-                            season="Season 4"
-                            episodeNumber="Episode 082"
-                            onRequestChanges={() => setIsRevisionModalOpen(true)}
-                        />
+                        <div className="relative z-20">
+                            <EditorHeader
+                                episodeId={episode._id}
+                                title={episode.title}
+                                status={episode.status}
+                                processingStage={episode.processingStage}
+                                season="Season 4"
+                                episodeNumber="Episode 082"
+                                hasOpenRevision={!!visibleRevision} // [MODIFIED] Use filtered revision
+                                onRequestChanges={() => setIsRevisionModalOpen(true)}
+                            />
+                            {/* [NEW] Insert Version Controller into Header area or below it? 
+                                Design says: "unified Version Controller sitting right above the video player."
+                                But EditorHeader is top. Let's put it IN EditorHeader or just below.
+                                Actually, user said "right above the video player". 
+                                The video player is in the left column.
+                            */}
+                        </div>
 
                         <div className="flex-1 flex overflow-hidden">
                             {/* LEFT COLUMN: Main Workstation */}
@@ -120,6 +199,19 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
 
                                 {/* 1. Player & Waveform Container */}
                                 <div className="flex flex-col gap-6 shrink-0">
+                                    {/* [NEW] Version Controller Bar */}
+                                    <div className="flex items-center justify-between px-2">
+                                        <VersionController
+                                            episodeId={episode._id}
+                                            currentVersionId={episode.currentVersionId}
+                                            selectedVersionId={selectedVersionId}
+                                            onVersionSelect={handleVersionSelect}
+                                        />
+                                        <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
+                                            {selectedVersionId === episode.currentVersionId ? "VIEWING LATEST" : "VIEWING OLDER VERSION"}
+                                        </div>
+                                    </div>
+
                                     {videoUrl && (
                                         <AVSyncPlayer
                                             ref={playerRef}
@@ -131,6 +223,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                             onReady={() => {
                                                 console.log("AVSyncPlayer Ready: Lifting Pre-load Gate.");
                                                 setIsClientReady(true);
+                                                setIsSwitchingVersion(false); // [NEW] Clear switching state
                                             }}
                                         />
                                     )}
@@ -199,6 +292,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                     {activeTab === 'comments' && comments && (
                                         <CommentsSection
                                             episodeId={episode._id}
+                                            versionId={selectedVersionId} // [NEW] Link comments to version
                                             currentTime={currentTime}
                                             onSeek={handleSeek}
                                             comments={comments}

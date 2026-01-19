@@ -174,7 +174,7 @@ export function RevisionCard({ batch, index, totalBatches, active, onSeek }: Rev
                                     Approved by Lead Producer
                                 </p>
                                 <div className="size-6 rounded-full bg-[#22EE66]/20 flex items-center justify-center text-[#22EE66]">
-                                    <span className="material-symbols-outlined text-[14px]">done_all</span>
+                                    <span className="material-symbols-outlined text-[14px]">done</span>
                                 </div>
                             </div>
                         )}

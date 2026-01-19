@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ProcessingVisualizer } from './ProcessingVisualizer';
 
 interface EpisodeProps {
     _id?: string;
@@ -7,6 +8,8 @@ interface EpisodeProps {
     guest?: string;
     date: string;
     status: 'processing' | 'action_required' | 'completed';
+    processingStage?: string; // New Prop
+    videoUrl?: string; // New: For Thumbnail Preview
     progress?: number;
     imageUrl: string;
     duration?: string;
@@ -20,7 +23,7 @@ interface EpisodeCardProps {
 }
 
 export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps) {
-    const { status, title, guest, date, progress, imageUrl, duration, issues, views } = episode;
+    const { status, title, guest, date, progress, imageUrl, duration, issues, views, processingStage } = episode;
     const episodeId = episode._id || episode.id;
 
     const isLibrary = variant === 'library';
@@ -52,22 +55,53 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
             )}
 
             <div className={`relative w-full aspect-video ${isLibrary ? 'rounded-xl shadow-2xl border border-white/10 mb-3' : 'rounded-2xl mb-6'} overflow-hidden bg-white/5`}>
-                <img
-                    className="w-full h-full object-cover brightness-75 group-hover:scale-105 transition-transform duration-700"
-                    src={imageUrl}
-                    alt={title}
-                />
 
-                {/* Play Overlay */}
-                <div className={`absolute inset-0 flex items-center justify-center ${isLibrary ? 'bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300' : ''}`}>
-                    <div className={`${isLibrary ? '' : 'size-16 rounded-full glass'} flex items-center justify-center text-white/80 ${isLibrary ? '' : 'group-hover:scale-110 transition-transform'}`}>
-                        <span className={`material-symbols-outlined ${isLibrary ? 'text-5xl text-white' : 'text-3xl'}`}>
-                            {isLibrary ? 'play_circle' : 'play_arrow'}
-                        </span>
+                {/* CONDITIONAL RENDER: Processing Visualizer or Video or Static Image */}
+                {status === 'processing' ? (
+                    <ProcessingVisualizer stage={processingStage} />
+                ) : episode.videoUrl ? (
+                    <div className="relative w-full h-full group/video">
+                        <video
+                            src={episode.videoUrl}
+                            className="w-full h-full object-cover brightness-75 group-hover:brightness-100 transition-all duration-700"
+                            muted
+                            loop
+                            playsInline
+                            onMouseOver={(e) => e.currentTarget.play()}
+                            onMouseOut={(e) => e.currentTarget.pause()}
+                        />
+                        {/* Play Overlay */}
+                        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none group-hover/video:opacity-0 transition-opacity duration-300`}>
+                            <div className={`${isLibrary ? '' : 'size-16 rounded-full glass'} flex items-center justify-center text-white/80`}>
+                                <span className={`material-symbols-outlined ${isLibrary ? 'text-5xl text-white' : 'text-3xl'}`}>
+                                    {isLibrary ? 'play_circle' : 'play_arrow'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        <img
+                            className="w-full h-full object-cover brightness-75 group-hover:scale-105 transition-transform duration-700"
+                            src={imageUrl}
+                            alt={title}
+                        />
 
-                {/* Badges */}
+                        {/* Play Overlay */}
+                        <div className={`absolute inset-0 flex items-center justify-center ${isLibrary ? 'bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300' : ''}`}>
+                            <div className={`${isLibrary ? '' : 'size-16 rounded-full glass'} flex items-center justify-center text-white/80 ${isLibrary ? '' : 'group-hover:scale-110 transition-transform'}`}>
+                                <span className={`material-symbols-outlined ${isLibrary ? 'text-5xl text-white' : 'text-3xl'}`}>
+                                    {isLibrary ? 'play_circle' : 'play_arrow'}
+                                </span>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Badges - Only show if NOT processing (visualizer handles its own status) OR if we want them on top. 
+                    Let's hide standard badges for processing since the visualizer is "loud". 
+                    Actually, keeping the processing badge might be redundant but "Action Required" / "Completed" need to stay. 
+                */}
                 <div className={`absolute ${isLibrary ? 'top-3 left-3' : 'top-4 left-4'}`}>
                     {isLibrary ? (
                         // Library Badges
@@ -93,6 +127,11 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                     ) : (
                         // Dashboard Badges
                         <>
+                            {/* We hide the standard Processing badge in Dashboard view effectively because the visualizer dominates explanation 
+                                BUT if we want to be consistent, we can keep it. The user said "instead of having the placeholder image... reflect what is happening". 
+                                The visualizer does that. The badge is an overlay. I will keep it for consistency but maybe it's redundant. 
+                                Let's keep it for now.
+                            */}
                             {status === 'processing' && (
                                 <span className="flex items-center gap-2 bg-purple-500/80 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
                                     <span className="size-1.5 rounded-full bg-white"></span>
@@ -151,7 +190,8 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                         {status === 'processing' && (
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-white/60">Rendering Scenes...</span>
+                                    {/* Updated Text to match Visualizer vibe slightly, or keep generic */}
+                                    <span className="text-white/60">System Processing...</span>
                                     <span className="text-primary font-bold">{progress}%</span>
                                 </div>
                                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">

@@ -53,3 +53,55 @@ export const list = query({
         return enrichedBatches;
     },
 });
+
+export const listOpen = query({
+    args: {},
+    handler: async (ctx) => {
+        // 1. Fetch all revision batches that are 'open'
+        // Index: .index("by_status", ["status"])
+        const batches = await ctx.db
+            .query("revision_batches")
+            .withIndex("by_status", (q) => q.eq("status", "open"))
+            .collect();
+
+        // 2. Sort by creation time descending (newest first)
+        batches.sort((a, b) => b._creationTime - a._creationTime);
+
+        // 3. Enrich with Episode Data
+        const enriched = await Promise.all(batches.map(async (batch) => {
+            const episode = await ctx.db.get(batch.episodeId);
+
+            // Mock Author (consistent with list query)
+            const author = {
+                name: "Client User",
+                avatar: "https://ui-avatars.com/api/?name=Client+User&background=random"
+            };
+
+            // Format Relative Date
+            const timeDiff = Date.now() - batch._creationTime;
+            let timeAgo = "Just now";
+            if (timeDiff > 60000) {
+                const mins = Math.floor(timeDiff / 60000);
+                timeAgo = `${mins} mins ago`;
+                if (mins > 60) {
+                    const hours = Math.floor(mins / 60);
+                    timeAgo = `${hours} hours ago`;
+                }
+            }
+
+            return {
+                ...batch,
+                author,
+                formattedDate: timeAgo,
+                episode: episode ? {
+                    _id: episode._id,
+                    title: episode.title,
+                    imageUrl: episode.imageUrl
+                } : null
+            };
+        }));
+
+        // Filter out any where episode might be null (deleted episodes)
+        return enriched.filter(b => b.episode !== null);
+    }
+});

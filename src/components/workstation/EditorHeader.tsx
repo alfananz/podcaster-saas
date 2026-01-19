@@ -16,10 +16,11 @@ interface EditorHeaderProps {
     episodeNumber?: string;
     status: 'processing' | 'action_required' | 'completed';
     processingStage?: 'queued' | 'transcribing' | 'enriching' | 'completed' | 'failed' | 'revision_requested';
+    hasOpenRevision?: boolean;
     onRequestChanges: () => void;
 }
 
-export function EditorHeader({ episodeId, title, season = "Season 1", episodeNumber = "Episode 1", status, processingStage, onRequestChanges }: EditorHeaderProps) {
+export function EditorHeader({ episodeId, title, season = "Season 1", episodeNumber = "Episode 1", status, processingStage, hasOpenRevision, onRequestChanges }: EditorHeaderProps) {
     const router = useRouter();
     const removeEpisode = useMutation(api.episodes.remove);
 
@@ -73,11 +74,19 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
                     <span className="material-symbols-outlined text-[18px]">delete</span>
                 </button>
                 <button
-                    onClick={onRequestChanges}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm font-bold text-white hover:bg-white/10 transition-all cursor-pointer"
+                    onClick={hasOpenRevision ? undefined : onRequestChanges}
+                    disabled={hasOpenRevision}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-bold transition-all
+                        ${hasOpenRevision
+                            ? 'border-white/5 bg-white/5 text-white/30 cursor-not-allowed'
+                            : 'border-white/10 bg-white/5 text-white hover:bg-white/10 cursor-pointer'
+                        }
+                    `}
                 >
-                    <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                    Request Changes
+                    <span className="material-symbols-outlined text-[18px]">
+                        {hasOpenRevision ? 'hourglass_top' : 'edit_note'}
+                    </span>
+                    {hasOpenRevision ? 'Revision Pending' : 'Request Changes'}
                 </button>
                 <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-all cursor-pointer">
                     <span className="material-symbols-outlined text-[18px]">check_circle</span>

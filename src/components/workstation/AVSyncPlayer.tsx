@@ -52,10 +52,16 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
         }
 
         // 3. Create New Instance linked to Video Element
+        // 3. Create New Instance linked to Video Element
         console.log("[AVSyncPlayer] Creating WaveSurfer instance linked to video element...");
+        // Define fetch params to handle potential CORS/Auth issues with storage URLs
         const ws = WaveSurfer.create({
             container: container,
             media: videoElement, // This is the MAGIC key. It binds WS to the video tag.
+            fetchParams: {
+                mode: 'cors',
+                credentials: 'omit',
+            },
             waveColor: "rgba(255, 255, 255, 0.4)",
             progressColor: "#3C8CE7",
             height: 120,

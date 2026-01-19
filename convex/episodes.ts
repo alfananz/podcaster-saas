@@ -5,7 +5,32 @@ import { internal } from "./_generated/api";
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        return await ctx.db.query("episodes").collect();
+        const episodes = await ctx.db.query("episodes").collect();
+
+        // Enrich with videoUrl from currentVersion if available
+        const enriched = await Promise.all(episodes.map(async (ep) => {
+            let videoUrl = ep.videoUrl;
+
+            // If no videoUrl on episode, check current version
+            if (!videoUrl && ep.currentVersionId) {
+                const version = await ctx.db.get(ep.currentVersionId);
+                // Note: version.videoUrl might be a storage ID or a full URL. 
+                // Assuming version logic stores a usable URL or we need to generate one from storageId.
+                // If version has storageId and no videoUrl, we try to get url.
+                if (version?.videoUrl) {
+                    videoUrl = version.videoUrl;
+                } else if (version?.storageId) {
+                    videoUrl = await ctx.storage.getUrl(version.storageId) || undefined;
+                }
+            } else if (!videoUrl && ep.storageId) {
+                // Fallback to episode storage (legacy)
+                videoUrl = await ctx.storage.getUrl(ep.storageId) || undefined;
+            }
+
+            return { ...ep, videoUrl };
+        }));
+
+        return enriched;
     },
 });
 
@@ -30,6 +55,24 @@ export const create = mutation({
 
         // Atomic Scheduling: If storageId is present, start the pipeline immediately.
         if (args.storageId) {
+            // [NEW] v1.0 Logic: Create initial version entry
+            const versionId = await ctx.db.insert("versions", {
+                episodeId,
+                versionNumber: 1,
+                name: "v1.0 (Original)",
+                storageId: args.storageId,
+                authorId: (await ctx.auth.getUserIdentity())?.subject || "admin",
+                status: "active",
+                uploadTime: Date.now(),
+                changeLog: "Initial Upload",
+            });
+
+            // Update Episode with Head Pointer
+            await ctx.db.patch(episodeId, {
+                currentVersionId: versionId
+            });
+
+            // Start Pipeline
             await ctx.scheduler.runAfter(0, (internal as any).actions.process.run, {
                 episodeId,
                 storageId: args.storageId,
@@ -239,35 +282,50 @@ export const getStorageUrl = query({
 
 // Revision Workflow
 export const requestRevision = mutation({
-    args: { episodeId: v.id("episodes"), feedback: v.string() },
+    args: { episodeId: v.id("episodes"), versionId: v.optional(v.id("versions")), feedback: v.string() },
     handler: async (ctx, args) => {
         // 1. Auth Check
         const identity = await ctx.auth.getUserIdentity();
-        // Use identity or mock
         const userId = identity?.subject || "mock-user-id";
 
-        // 2. Create Revision Batch
+        // 2. [LOCKING] Check for existing open batch for this episode
+        const existingOpenBatch = await ctx.db
+            .query("revision_batches")
+            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
+            .filter((q) => q.eq(q.field("status"), "open"))
+            .first();
+
+        if (existingOpenBatch) {
+            throw new Error("A revision request is already active for this episode. Please resolve it before requesting another.");
+        }
+
+        // 3. Create Revision Batch (Scoped to Version)
         const batchId = await ctx.db.insert("revision_batches", {
             episodeId: args.episodeId,
+            versionId: args.versionId, // [NEW] Link to version
             authorId: userId,
             note: args.feedback,
             status: "open",
         });
 
-        // 3. Bundle Comments
-        // Find all unresolved comments for this episode that are NOT already in a batch
-        const pendingComments = await ctx.db
+        // 4. Bundle Comments (Scoped to Version)
+        // Find all unresolved comments for this episode AND version that are NOT already in a batch
+        let pendingCommentsQuery = ctx.db
             .query("comments")
-            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
+            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId));
+
+        // Strict filtering by version
+        const pendingComments = await pendingCommentsQuery
             .filter((q) => q.eq(q.field("revisionBatchId"), undefined))
             .filter((q) => q.eq(q.field("isResolved"), false))
+            .filter((q) => q.eq(q.field("versionId"), args.versionId)) // [NEW] Strict Scope
             .collect();
 
         for (const comment of pendingComments) {
             await ctx.db.patch(comment._id, { revisionBatchId: batchId });
         }
 
-        // 4. Move Episode Backwards
+        // 5. Move Episode Backwards
         await ctx.db.patch(args.episodeId, {
             status: "action_required",
             processingStage: "revision_requested" as any

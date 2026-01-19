@@ -16,6 +16,7 @@ export function Sidebar() {
 
     const links = [
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+        { href: "/revisions", label: "Revisions", icon: "history_edu" },
         { href: "/episodes", label: "Episodes", icon: "video_library" },
         { href: "#", label: "Templates", icon: "auto_awesome_motion" },
         { href: "/media", label: "Media Library", icon: "folder_open" },
@@ -81,13 +82,13 @@ export function Sidebar() {
                 </button>
 
                 <div className="flex items-center gap-3 px-2">
-                    <div className="size-10 rounded-full border-2 border-primary/40 p-0.5">
+                    <Link href="/settings" className="size-10 rounded-full border-2 border-primary/40 p-0.5 cursor-pointer block hover:border-primary transition-colors">
                         <img
                             className="w-full h-full rounded-full object-cover"
                             src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuLkBcC5FfT_jSF5Ogr-KOqQxr5Ool8Bj8cMH63lGs9_giuMNPvlyF0gRM1Mkf4l1JXMmuT5Ihk8PMSwQoiToA4hoaHVAzUQgdyxhmroJF6-mCli4xQlylHjWjKM3HYJNekcc4u9Y4VoY3ZJL4e3PlsZ8AWMvzENqBuIW-PjcZti5qupfwmxEAwaYyzd443iLxbex5uJJxwox6OzUOu9rDpkFgUoIvR3Lf-t9QlX8VSQ9ElfWOkByx2J1-f-R5MzBG-F5-FV17v8n7"
                             alt="User profile"
                         />
-                    </div>
+                    </Link>
                     <div>
                         <p className="text-sm font-bold">Alex Rivera</p>
                         <p className="text-[10px] text-white/40 uppercase tracking-tighter">Premium Account</p>
