@@ -9,13 +9,14 @@ interface AVSyncPlayerProps {
     onTimeUpdate?: (time: number) => void;
     comments?: any[]; // Keep any for now to avoid specific type dependency, or define stricter
     title?: string;
+    onReady?: () => void;
 }
 
 export interface AVSyncPlayerRef {
     seekTo: (time: number) => void;
 }
 
-const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl, onTimeUpdate, comments = [], title }, ref) => {
+const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl, onTimeUpdate, comments = [], title, onReady }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [hasMounted, setHasMounted] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -78,6 +79,7 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
                 console.log("[WaveSurfer] Ready. Using WS Duration:", d);
                 setDuration(d);
             }
+            if (onReady) onReady();
         });
         ws.on('error', (e) => console.error("[WaveSurfer] ERROR:", e));
 

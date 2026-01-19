@@ -54,3 +54,40 @@ export const resolve = mutation({
         await ctx.db.patch(args.commentId, { isResolved: !comment.isResolved });
     }
 });
+
+export const edit = mutation({
+    args: {
+        commentId: v.id("comments"),
+        text: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const comment = await ctx.db.get(args.commentId);
+        if (!comment) throw new Error("Comment not found");
+        // In real app, check auth vs comment.user.id
+        await ctx.db.patch(args.commentId, { text: args.text });
+    }
+});
+
+export const deleteComment = mutation({
+    args: { commentId: v.id("comments") },
+    handler: async (ctx, args) => {
+        const comment = await ctx.db.get(args.commentId);
+        if (!comment) return; // Idempotent
+
+        // 1. Delete the comment itself
+        await ctx.db.delete(args.commentId);
+
+        // 2. Delete all replies (Recursive logic handled by fetching children)
+        // Note: For deep nesting, we'd need a recursive function, but schema only suggests 1 level or flat threading via parentId.
+        // Assuming single level nesting or flattened structure for now based on CommentsSection implementation.
+        const replies = await ctx.db
+            .query("comments")
+            .withIndex("by_parent", (q) => q.eq("parentId", args.commentId))
+            .collect();
+
+        for (const reply of replies) {
+            await ctx.db.delete(reply._id);
+            // If we support deep nesting, we'd recurse here.
+        }
+    }
+});

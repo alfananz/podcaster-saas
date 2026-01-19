@@ -15,9 +15,11 @@ import type * as actions_process from "../actions/process.js";
 import type * as actions_transcribe from "../actions/transcribe.js";
 import type * as assets from "../assets.js";
 import type * as comments from "../comments.js";
+import type * as debug from "../debug.js";
 import type * as episodes from "../episodes.js";
 import type * as files from "../files.js";
 import type * as media from "../media.js";
+import type * as revisions from "../revisions.js";
 
 import type {
   ApiFromModules,
@@ -33,9 +35,11 @@ declare const fullApi: ApiFromModules<{
   "actions/transcribe": typeof actions_transcribe;
   assets: typeof assets;
   comments: typeof comments;
+  debug: typeof debug;
   episodes: typeof episodes;
   files: typeof files;
   media: typeof media;
+  revisions: typeof revisions;
 }>;
 
 /**

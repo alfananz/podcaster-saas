@@ -40,7 +40,7 @@ export const generateTranscript = action({
             start: word.start,
             end: word.end,
             text: word.text,
-            speaker: word.speaker_id || "Unknown",
+            speaker: word.speakerId || "Unknown",
         }));
 
         await ctx.runMutation(api.episodes.saveAIResults, {

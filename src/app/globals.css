@@ -30,11 +30,25 @@
 
   /* Media Library Utilities */
   .inner-glow {
-    box-shadow: inset 0 0 15px rgba(0, 230, 199, 0.05);
+    box-shadow: 0 0 10px rgba(50, 255, 150, 0.5), inset 0 0 20px rgba(50, 255, 150, 0.2);
   }
 
-  .glass-panel {
-    @apply bg-white/5 backdrop-blur-3xl border border-white/10;
+  /* Cyberpunk Timeline Styles */
+  .glowing-spine {
+    box-shadow: 0 0 10px #ff4db5;
+  }
+
+  .glowing-node-pink {
+    box-shadow: 0 0 12px #ff4db5, 0 0 4px #ff4db5 inset;
+  }
+
+  .glowing-node-green {
+    box-shadow: 0 0 12px #22EE66, 0 0 4px #22EE66 inset;
+  }
+
+  .revision-card-active {
+    box-shadow: 0 0 20px rgba(255, 77, 181, 0.15);
+    border: 1px solid rgba(255, 77, 181, 0.3);
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -132,4 +146,77 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) rgba(0, 0, 0, 0.2);
+}
+
+.obsidian-glass {
+  background: #18191B;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.neon-focus:focus {
+  outline: none;
+  border-color: #ff4db5 !important;
+  box-shadow: 0 0 15px rgba(255, 77, 181, 0.3);
+}
+
+/* Animations */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+@keyframes aurora-blob {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.5;
+  }
+
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+    opacity: 0.7;
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+    opacity: 0.6;
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.5;
+  }
+}
+
+.animate-aurora-blob {
+  animation: aurora-blob 10s ease-in-out infinite;
+}
+
+/* Custom Colors proxies */
+.bg-accent-pink {
+  background-color: #ff4db5;
+}
+
+.text-accent-pink {
+  color: #ff4db5;
+}
+
+.border-accent-pink {
+  border-color: #ff4db5;
+}
+
+.bg-success-green {
+  background-color: #22EE66;
+}
+
+.text-success-green {
+  color: #22EE66;
 }

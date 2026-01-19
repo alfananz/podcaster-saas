@@ -53,7 +53,8 @@ export default defineSchema({
             v.literal("transcribing"),
             v.literal("enriching"),
             v.literal("completed"),
-            v.literal("failed")
+            v.literal("failed"),
+            v.literal("revision_requested")
         )),
     }),
     assets: defineTable({
@@ -74,6 +75,15 @@ export default defineSchema({
         .index("by_user", ["userId"])
         .index("by_episode", ["episodeId"])
         .index("by_type", ["type"]),
+    revision_batches: defineTable({
+        episodeId: v.id("episodes"),
+        authorId: v.string(),
+        note: v.string(),
+        status: v.union(v.literal("open"), v.literal("resolved")),
+        resolvedAt: v.optional(v.number()),
+    })
+        .index("by_episode", ["episodeId"])
+        .index("by_status", ["status"]),
     comments: defineTable({
         episodeId: v.id("episodes"),
         text: v.string(),
@@ -85,7 +95,14 @@ export default defineSchema({
         isResolved: v.boolean(),
         parentId: v.optional(v.id("comments")), // For threading
         likes: v.number(),
+        type: v.optional(v.string()), // e.g. "revision_request"
+        revisionBatchId: v.optional(v.id("revision_batches")),
     })
         .index("by_episode", ["episodeId"])
-        .index("by_parent", ["parentId"]),
+        .index("by_parent", ["parentId"])
+        .index("by_batch", ["revisionBatchId"]),
+    transcripts: defineTable({
+        episodeId: v.id("episodes"),
+        transcriptJson: v.any(),
+    }).index("by_episode", ["episodeId"]),
 });

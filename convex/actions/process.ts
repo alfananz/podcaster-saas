@@ -109,20 +109,26 @@ export const run = action({
                 start: word.start,
                 end: word.end,
                 text: word.text,
-                speaker: word.speaker_id || "Unknown",
+                speaker: word.speakerId || "Unknown",
             }));
 
             words.forEach((word: any) => {
-                if (word.speaker_id) {
-                    speakers.add(word.speaker_id);
+                if (word.speakerId) {
+                    speakers.add(word.speakerId);
                 }
             });
 
-            // 6. Save Base Results
-            await mutationClient.mutation(api.episodes.saveAIResults, {
+            // 6. Save Base Results - Split into two calls to prevent timeouts
+            console.log("STEP 3.1: Saving Heavy Transcript JSON");
+            await mutationClient.mutation(api.episodes.saveTranscript, {
+                episodeId: args.episodeId,
+                transcriptJson: transcriptResponse,
+            });
+
+            console.log("STEP 3.2: Updating Episode Metadata");
+            await mutationClient.mutation(api.episodes.updateEpisodeAIResults, {
                 episodeId: args.episodeId,
                 transcript: text,
-                transcriptJson: transcriptResponse,
                 segments: segments,
                 speakers: Array.from(speakers),
             });

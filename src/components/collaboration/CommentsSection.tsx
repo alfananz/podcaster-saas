@@ -14,6 +14,12 @@ interface CommentsSectionProps {
 export function CommentsSection({ episodeId, currentTime, onSeek, comments }: CommentsSectionProps) {
     // Removed internal useQuery(api.comments.list) as it passes via props now
     const createComment = useMutation(api.comments.create);
+    const editComment = useMutation(api.comments.edit);
+    const deleteComment = useMutation(api.comments.deleteComment);
+    const completeRevision = useMutation(api.episodes.completeRevision);
+
+    // Revision Mode Data
+    const activeRevisionBatch = useQuery(api.episodes.getActiveRevisionBatch, { episodeId });
 
     const [newCommentText, setNewCommentText] = useState("");
     const [activeReplyId, setActiveReplyId] = useState<Id<"comments"> | null>(null);
@@ -29,15 +35,29 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                 if (!replies[c.parentId]) replies[c.parentId] = [];
                 replies[c.parentId].push(c);
             } else {
-                topLevel.push(c);
+                // Filter for Revision Mode?
+                // If activeRevisionBatch exists, frontend plan says "List all comments linked to this batchId"
+                // But comments prop comes from parent which fetches ALL comments.
+                // We should filter logic here.
+                if (activeRevisionBatch) {
+                    if (c.revisionBatchId === activeRevisionBatch._id) {
+                        topLevel.push(c);
+                    }
+                } else {
+                    // Normal Mode: Show all or just non-batched? 
+                    // Usually "In Review" means we are working on them.
+                    // For now show all in normal mode.
+                    topLevel.push(c);
+                }
             }
         });
 
-        topLevel.sort((a, b) => a.timestamp - b.timestamp);
+        // Sort Top Level by Creation Time DESC (Newest First) per user request
+        topLevel.sort((a, b) => b._creationTime - a._creationTime);
         Object.values(replies).forEach(arr => arr.sort((a, b) => a._creationTime - b._creationTime));
 
         return { topLevel, replies };
-    }, [comments]);
+    }, [comments, activeRevisionBatch]);
 
     const handleCreate = async (parentId?: Id<"comments">) => {
         if (!newCommentText.trim()) return;
@@ -57,6 +77,23 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
         setActiveReplyId(null);
     };
 
+    const handleEdit = async (commentId: Id<"comments">, newText: string) => {
+        await editComment({ commentId, text: newText });
+    };
+
+    const handleDelete = async (commentId: Id<"comments">) => {
+        // Confirmation is annoying during dev/demos, removed for snapiness or use custom modal
+        // keeping confirm for safety based on previous step
+        if (confirm("Are you sure you want to delete this comment?")) {
+            await deleteComment({ commentId });
+        }
+    };
+
+    const handleCompleteRevision = async () => {
+        if (!activeRevisionBatch) return;
+        await completeRevision({ batchId: activeRevisionBatch._id, episodeId });
+    };
+
     if (!comments) return null;
 
     const formatTime = (seconds: number) => {
@@ -65,37 +102,83 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
         return `${min < 10 ? '0' : ''}${min}:${sec < 10 ? '0' : ''}${sec}`;
     };
 
+    const isRevisionMode = !!activeRevisionBatch;
+
     return (
         <section className="mt-8 w-full">
             {/* Obsidian Glass Thread Popover */}
-            <div className="w-full rounded-xl flex flex-col overflow-hidden bg-[#1a1c20]/85 backdrop-blur-md border border-white/5 shadow-[0_0_40px_-10px_rgba(255,51,153,0.15)] relative">
+            <div className={`w-full rounded-xl flex flex-col overflow-hidden backdrop-blur-md border shadow-[0_0_40px_-10px_rgba(255,51,153,0.15)] relative transition-all duration-500
+                ${isRevisionMode ? 'bg-red-500/10 border-red-500/30' : 'bg-[#1a1c20]/85 border-white/5'}
+            `}>
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                            {/* Live Timestamp (mocking the "01:24:05" style) */}
-                            <span className="text-[#ff3399] text-[22px] font-bold tracking-tighter tabular-nums">
-                                {formatTime(currentTime)}
-                            </span>
-                            {/* Optional Marker badge */}
-                            {/* <span className="text-[10px] uppercase tracking-widest text-white/30 font-bold border border-white/10 px-1.5 py-0.5 rounded">Marker A</span> */}
-                        </div>
-                        <p className="text-[11px] text-white/40 font-medium tracking-wide">COMMENTS & NOTES</p>
+                        {isRevisionMode ? (
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="material-symbols-outlined text-red-500 animate-pulse text-[20px]">engineering</span>
+                                <span className="text-red-400 font-bold uppercase tracking-widest text-xs">Revision Ticket</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <span className="text-[#ff3399] text-[22px] font-bold tracking-tighter tabular-nums">
+                                    {formatTime(currentTime)}
+                                </span>
+                            </div>
+                        )}
+                        <p className="text-[11px] text-white/40 font-medium tracking-wide">
+                            {isRevisionMode ? "TASKS & FEEDBACK" : "COMMENTS & NOTES"}
+                        </p>
                     </div>
 
                     <div className="flex items-center gap-1">
-                        <button className="p-2 text-white/40 hover:text-[#ff3399] transition-colors group">
-                            <span className="material-symbols-outlined text-[22px]">check_circle</span>
-                        </button>
+                        <span className="material-symbols-outlined text-white/20">history</span>
                     </div>
                 </div>
+
+                {/* Revision Note */}
+                {isRevisionMode && (
+                    <div className="px-5 py-4 bg-red-500/5 border-b border-red-500/10">
+                        <p className="text-xs text-red-200/80 uppercase tracking-widest mb-2 font-bold">Client Instructions</p>
+                        <div className="text-sm text-white italic pl-3 border-l-2 border-red-500/50">
+                            "{activeRevisionBatch.note}"
+                        </div>
+                    </div>
+                )}
+
+
+                {/* Input Area (Top) */}
+                {!isRevisionMode && (
+                    <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                        <div className="relative flex items-center">
+                            <textarea
+                                className="w-full bg-transparent border-none focus:ring-0 text-[13px] text-white placeholder:text-white/20 resize-none p-0 pr-10 appearance-none focus:outline-none placeholder:font-light"
+                                placeholder="Add a technical note..."
+                                rows={1}
+                                value={newCommentText}
+                                onChange={(e) => setNewCommentText(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey && !activeReplyId) {
+                                        e.preventDefault();
+                                        handleCreate();
+                                    }
+                                }}
+                            />
+                            <button
+                                onClick={() => handleCreate()}
+                                className="absolute right-0 p-2 text-[#ff3399] hover:scale-110 transition-transform"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">send</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Scrollable Comment Area */}
                 <div className="flex flex-col gap-6 p-5 overflow-y-auto max-h-[450px] scrollbar-thin scrollbar-thumb-pink-500/30 scrollbar-track-transparent">
                     {threads.topLevel.length === 0 && (
                         <div className="text-center py-8 text-white/20 italic text-sm">
-                            No notes yet. Add one below.
+                            {isRevisionMode ? "All tasks completed!" : "No notes yet. Add one above."}
                         </div>
                     )}
 
@@ -111,6 +194,8 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                                 comment={comment}
                                 onSeek={onSeek}
                                 onReply={() => setActiveReplyId(comment._id)}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
                             />
 
                             {/* Replies */}
@@ -120,6 +205,8 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                                         comment={reply}
                                         onSeek={onSeek}
                                         onReply={() => setActiveReplyId(comment._id)}
+                                        onEdit={handleEdit}
+                                        onDelete={handleDelete}
                                     />
                                 </div>
                             ))}
@@ -150,30 +237,18 @@ export function CommentsSection({ episodeId, currentTime, onSeek, comments }: Co
                     ))}
                 </div>
 
-                {/* Input Footer (New Thread) */}
-                <div className="p-4 border-t border-white/5 bg-white/[0.02]">
-                    <div className="relative flex items-center">
-                        <textarea
-                            className="w-full bg-transparent border-none focus:ring-0 text-[13px] text-white placeholder:text-white/20 resize-none p-0 pr-10 appearance-none focus:outline-none placeholder:font-light"
-                            placeholder="Add a technical note..."
-                            rows={1}
-                            value={newCommentText}
-                            onChange={(e) => setNewCommentText(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey && !activeReplyId) {
-                                    e.preventDefault();
-                                    handleCreate();
-                                }
-                            }}
-                        />
+                {/* Footer: Complete Button (Only for Revision Mode) */}
+                {isRevisionMode && (
+                    <div className="p-4 border-t border-red-500/20 bg-red-900/10">
                         <button
-                            onClick={() => handleCreate()}
-                            className="absolute right-0 p-2 text-[#ff3399] hover:scale-110 transition-transform"
+                            onClick={handleCompleteRevision}
+                            className="w-full py-4 rounded-lg bg-green-500/20 hover:bg-green-500/30 border border-green-500/50 text-green-400 font-bold tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 group"
                         >
-                            <span className="material-symbols-outlined text-[20px]">send</span>
+                            <span className="material-symbols-outlined group-hover:scale-110 transition-transform">check_circle</span>
+                            Mark Revision Complete
                         </button>
                     </div>
-                </div>
+                )}
             </div>
         </section>
     );
