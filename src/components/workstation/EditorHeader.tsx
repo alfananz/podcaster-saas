@@ -8,6 +8,7 @@ import { Id } from '../../../convex/_generated/dataModel';
 import { useState } from 'react';
 import { DeleteEpisodeModal } from '../modals/DeleteEpisodeModal';
 
+import { ApproveEpisodeModal } from '../modals/ApproveEpisodeModal';
 
 interface EditorHeaderProps {
     episodeId: Id<"episodes">;
@@ -17,14 +18,17 @@ interface EditorHeaderProps {
     status: 'processing' | 'action_required' | 'completed';
     processingStage?: 'queued' | 'transcribing' | 'enriching' | 'completed' | 'failed' | 'revision_requested';
     hasOpenRevision?: boolean;
+    hasComments?: boolean; // [NEW]
     onRequestChanges: () => void;
 }
 
-export function EditorHeader({ episodeId, title, season = "Season 1", episodeNumber = "Episode 1", status, processingStage, hasOpenRevision, onRequestChanges }: EditorHeaderProps) {
+export function EditorHeader({ episodeId, title, season = "Season 1", episodeNumber = "Episode 1", status, processingStage, hasOpenRevision, hasComments = false, onRequestChanges }: EditorHeaderProps) {
     const router = useRouter();
     const removeEpisode = useMutation(api.episodes.remove);
+    const approveEpisode = useMutation(api.episodes.approve);
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
 
     const handleDeleteClick = () => {
         setIsDeleteModalOpen(true);
@@ -35,9 +39,17 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
         router.push('/episodes');
     };
 
+    const confirmApprove = async () => {
+        await approveEpisode({ episodeId });
+        setIsApproveModalOpen(false);
+    };
+
     // Determine Logic for "In Review" vs "Error"
     const isInReview = status === 'action_required' && processingStage === 'completed';
     const isError = status === 'action_required' && processingStage === 'failed';
+    const isApproved = status === 'completed';
+
+    const isRequestChangesDisabled = hasOpenRevision || !hasComments || isApproved;
 
     return (
         <header className="h-20 border-b border-white/5 flex items-center bg-black/20 backdrop-blur-md sticky top-0 z-10 w-full">
@@ -83,17 +95,23 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
 
                 {/* Request Changes Button */}
                 <button
-                    onClick={hasOpenRevision ? undefined : onRequestChanges}
-                    disabled={hasOpenRevision}
+                    onClick={isRequestChangesDisabled ? undefined : onRequestChanges}
+                    disabled={isRequestChangesDisabled}
                     className={`flex-1 flex items-center justify-center h-10 px-2 rounded-full border transition-all duration-300 ease-out gap-2
-                        ${hasOpenRevision
+                        ${isRequestChangesDisabled
                             ? 'bg-transparent border-white/5 text-white/30 cursor-not-allowed'
                             : 'bg-transparent hover:bg-[#ff3399]/10 border-[#ff3399]/20 text-[#ff3399] hover:text-white hover:shadow-[0_0_20px_rgba(255,51,153,0.4)]'
                         }
                     `}
+                    title={
+                        isApproved ? "Episode is locked"
+                            : hasOpenRevision ? "Review in progress"
+                                : !hasComments ? "Add comments to request changes"
+                                    : "Request Changes"
+                    }
                 >
                     <span className="material-symbols-outlined text-[18px]">
-                        {hasOpenRevision ? 'hourglass_top' : 'edit_note'}
+                        {hasOpenRevision ? 'hourglass_top' : isApproved ? 'lock' : 'edit_note'}
                     </span>
                     <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
                         {hasOpenRevision ? 'Pending' : 'Request Changes'}
@@ -101,17 +119,36 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
                 </button>
 
                 {/* Approve Button */}
-                <button className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-transparent hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all duration-300 ease-out hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] gap-2">
-                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
-                        Approve
-                    </span>
-                </button>
+                {!isApproved ? (
+                    <button
+                        onClick={() => setIsApproveModalOpen(true)}
+                        className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-transparent hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all duration-300 ease-out hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] gap-2"
+                        title="Approve & Lock Episode"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                        <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
+                            Approve
+                        </span>
+                    </button>
+                ) : (
+                    <div className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 gap-2 cursor-default">
+                        <span className="material-symbols-outlined text-[18px]">lock</span>
+                        <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
+                            Locked
+                        </span>
+                    </div>
+                )}
             </div>
             <DeleteEpisodeModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
+                episodeTitle={title}
+            />
+            <ApproveEpisodeModal
+                isOpen={isApproveModalOpen}
+                onClose={() => setIsApproveModalOpen(false)}
+                onConfirm={confirmApprove}
                 episodeTitle={title}
             />
         </header>

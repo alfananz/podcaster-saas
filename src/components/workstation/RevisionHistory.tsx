@@ -17,7 +17,7 @@ export function RevisionHistory({ episodeId, onSeek }: RevisionHistoryProps) {
     }
 
     return (
-        <div className="flex-1 overflow-y-auto custom-scrollbar relative pl-12 pr-6 py-8 h-full bg-[#111317]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar relative pl-12 pr-6 py-8 h-full">
             <h2 className="text-[10px] font-black tracking-[0.3em] text-white/40 uppercase mb-8 ml-1">Revision History</h2>
 
             <div className="relative flex flex-col gap-0">

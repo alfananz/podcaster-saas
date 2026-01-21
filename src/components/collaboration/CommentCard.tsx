@@ -9,10 +9,11 @@ interface CommentCardProps {
     onReply: (parentId: Id<"comments">) => void;
     onEdit: (commentId: Id<"comments">, newText: string) => void;
     onDelete: (commentId: Id<"comments">) => void;
+    onResolve: (commentId: Id<"comments">) => void;
     isThreadView?: boolean;
 }
 
-export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, isThreadView = false }: CommentCardProps) {
+export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onResolve, isThreadView = false }: CommentCardProps) {
     const toggleLike = useMutation(api.comments.toggleLike);
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState(comment.text);
@@ -45,7 +46,7 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, isThre
     return (
         <div
             onClick={() => onSeek(comment.timestamp)}
-            className="p-5 bg-white/5 rounded-2xl border border-white/5 group hover:border-white/10 hover:bg-white/10 transition-all w-full animate-in fade-in slide-in-from-bottom-2 duration-500 cursor-pointer"
+            className={`p-5 bg-white/5 rounded-2xl border border-white/5 group hover:border-white/10 hover:bg-white/10 transition-all w-full animate-in fade-in slide-in-from-bottom-2 duration-500 cursor-pointer ${comment.isResolved ? 'opacity-50 hover:opacity-100' : 'opacity-100'}`}
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
@@ -54,6 +55,11 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, isThre
                         backgroundImage: `url(${comment.user.avatar || `https://ui-avatars.com/api/?name=${comment.user.name}&background=random`})`
                     }}></div>
                     <span className="text-xs font-bold text-white tracking-wide">{comment.user.name}</span>
+                    {comment.isResolved && (
+                        <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
+                            Resolved
+                        </span>
+                    )}
                 </div>
                 {isMe ? (
                     <span className="text-[10px] font-mono text-primary bg-primary/10 px-2 py-1 rounded-md font-bold shadow-sm shadow-primary/5">
@@ -110,7 +116,15 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, isThre
                     {isMe && (
                         <>
                             <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors">EDIT</button>
-                            <button onClick={(e) => { e.stopPropagation(); onDelete(comment._id); }} className="text-[10px] font-bold text-white/30 hover:text-red-400 uppercase tracking-widest hover:bg-red-500/10 py-1 px-2 rounded-lg transition-colors">RESOLVE</button>
+
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onResolve(comment._id); }}
+                                className={`text-[10px] font-bold uppercase tracking-widest py-1 px-2 rounded-lg transition-colors ${comment.isResolved ? 'text-emerald-400 hover:text-white hover:bg-emerald-500/20' : 'text-white/30 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
+                            >
+                                {comment.isResolved ? "UNRESOLVE" : "RESOLVE"}
+                            </button>
+
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(comment._id); }} className="text-[10px] font-bold text-white/30 hover:text-red-400 uppercase tracking-widest hover:bg-red-500/10 py-1 px-2 rounded-lg transition-colors">DELETE</button>
                         </>
                     )}
                 </div>

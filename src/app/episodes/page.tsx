@@ -95,7 +95,7 @@ export default function EpisodesPage() {
                     <section className="pb-12">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {filteredEpisodes.map((ep) => (
-                                <EpisodeCard key={ep._id} episode={ep} variant="library" />
+                                <EpisodeCard key={ep._id} episode={ep} />
                             ))}
 
                             {/* Placeholder/Empty State (Always show as last tile or if empty) */}

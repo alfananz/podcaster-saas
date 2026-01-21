@@ -112,3 +112,27 @@ export const deleteComment = mutation({
         }
     }
 });
+
+export const clearAll = mutation({
+    args: {
+        episodeId: v.id("episodes"),
+        versionId: v.optional(v.id("versions")),
+    },
+    handler: async (ctx, args) => {
+        let comments;
+        if (args.versionId) {
+            comments = await ctx.db.query("comments")
+                .withIndex("by_episode_version", (q) => q.eq("episodeId", args.episodeId).eq("versionId", args.versionId))
+                .collect();
+        } else {
+            comments = await ctx.db.query("comments")
+                .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
+                .filter(q => q.eq(q.field("versionId"), undefined))
+                .collect();
+        }
+
+        for (const comment of comments) {
+            await ctx.db.delete(comment._id);
+        }
+    }
+});

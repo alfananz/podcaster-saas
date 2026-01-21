@@ -195,6 +195,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                 season="Season 4"
                                 episodeNumber="Episode 082"
                                 hasOpenRevision={!!visibleRevision} // [MODIFIED] Use filtered revision
+                                hasComments={comments && comments.length > 0} // [NEW] Pass comment state
                                 onRequestChanges={() => setIsRevisionModalOpen(true)}
                             />
                             {/* [NEW] Insert Version Controller into Header area or below it? 
@@ -298,6 +299,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                             currentTime={currentTime}
                                             onSeek={handleSeek}
                                             comments={comments}
+                                            isLocked={episode.status === 'completed'}
                                         />
                                     )}
                                     {activeTab === 'shownotes' && (

@@ -10,6 +10,8 @@ export default defineSchema({
         progress: v.optional(v.number()),
         imageUrl: v.string(),
         duration: v.optional(v.string()),
+        description: v.optional(v.string()),
+        episodeNumber: v.optional(v.number()),
         issues: v.optional(v.string()),
         storageId: v.optional(v.id("_storage")),
         // Workstation Fields

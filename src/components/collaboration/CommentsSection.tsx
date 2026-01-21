@@ -10,16 +10,16 @@ interface CommentsSectionProps {
     currentTime: number;
     onSeek: (time: number) => void;
     comments?: any[]; // Using any[] to match AVSyncPlayer for now, or use Doc<"comments">[]
+    isLocked?: boolean;
 }
 
-export function CommentsSection({ episodeId, versionId, currentTime, onSeek, comments }: CommentsSectionProps) {
-    // Removed internal useQuery(api.comments.list) as it passes via props now
+export function CommentsSection({ episodeId, versionId, currentTime, onSeek, comments, isLocked = false }: CommentsSectionProps) {
     const createComment = useMutation(api.comments.create);
     const editComment = useMutation(api.comments.edit);
     const deleteComment = useMutation(api.comments.deleteComment);
+    const resolveComment = useMutation(api.comments.resolve);
+    const clearAll = useMutation(api.comments.clearAll);
     const completeRevision = useMutation(api.episodes.completeRevision);
-
-    // Revision Mode Data
     const activeRevisionBatch = useQuery(api.episodes.getActiveRevisionBatch, { episodeId });
 
     const [newCommentText, setNewCommentText] = useState("");
@@ -61,6 +61,7 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
     }, [comments, activeRevisionBatch]);
 
     const handleCreate = async (parentId?: Id<"comments">) => {
+        if (isLocked) return;
         if (!newCommentText.trim()) return;
 
         await createComment({
@@ -80,14 +81,28 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
     };
 
     const handleEdit = async (commentId: Id<"comments">, newText: string) => {
+        if (isLocked) return;
         await editComment({ commentId, text: newText });
     };
 
     const handleDelete = async (commentId: Id<"comments">) => {
+        if (isLocked) return;
         // Confirmation is annoying during dev/demos, removed for snapiness or use custom modal
         // keeping confirm for safety based on previous step
         if (confirm("Are you sure you want to delete this comment?")) {
             await deleteComment({ commentId });
+        }
+    };
+
+    const handleResolve = async (commentId: Id<"comments">) => {
+        if (isLocked) return;
+        await resolveComment({ commentId });
+    };
+
+    const handleClearAll = async () => {
+        if (isLocked) return;
+        if (confirm("Are you sure you want to clear ALL comments? This cannot be undone.")) {
+            await clearAll({ episodeId, versionId });
         }
     };
 
@@ -136,7 +151,13 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
                     </div>
 
                     <div className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-white/20">history</span>
+                        <button
+                            onClick={handleClearAll}
+                            className="p-2 text-white/20 hover:text-red-400 transition-colors rounded-full hover:bg-white/5 group relative"
+                            title="Clear"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">delete_sweep</span>
+                        </button>
                     </div>
                 </div>
 
@@ -152,7 +173,8 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
 
 
                 {/* Input Area (Top) */}
-                {!isRevisionMode && (
+                {/* Input Area (Top) */}
+                {!isRevisionMode && !isLocked && (
                     <div className="p-4">
                         <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl px-2 py-1 focus-within:bg-white/10 focus-within:border-primary/50 transition-all duration-300">
                             <textarea
@@ -178,6 +200,18 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
                     </div>
                 )}
 
+                {/* Locked Banner */}
+                {!isRevisionMode && isLocked && (
+                    <div className="p-4">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                            <p className="text-white/40 text-xs font-mono uppercase tracking-widest flex items-center justify-center gap-2">
+                                <span className="material-symbols-outlined text-[16px]">lock</span>
+                                Episode Locked
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Scrollable Comment Area */}
                 <div className="flex-1 flex flex-col gap-6 p-5 pb-10 overflow-y-auto min-h-0 custom-scrollbar">
                     {threads.topLevel.length === 0 && (
@@ -195,6 +229,7 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
                                 onReply={() => setActiveReplyId(comment._id)}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}
+                                onResolve={handleResolve}
                             />
 
                             {/* Replies */}
@@ -206,6 +241,7 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
                                         onReply={() => setActiveReplyId(comment._id)}
                                         onEdit={handleEdit}
                                         onDelete={handleDelete}
+                                        onResolve={handleResolve}
                                     />
                                 </div>
                             ))}

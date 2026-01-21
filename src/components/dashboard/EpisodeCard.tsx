@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Link from 'next/link';
 import { ProcessingVisualizer } from './ProcessingVisualizer';
 
@@ -8,13 +9,15 @@ interface EpisodeProps {
     guest?: string;
     date: string;
     status: 'processing' | 'action_required' | 'completed';
-    processingStage?: string; // New Prop
-    videoUrl?: string; // New: For Thumbnail Preview
+    processingStage?: string;
+    videoUrl?: string;
     progress?: number;
     imageUrl: string;
     duration?: string;
     issues?: string;
     views?: string;
+    description?: string;
+    episodeNumber?: number;
 }
 
 interface EpisodeCardProps {
@@ -23,16 +26,32 @@ interface EpisodeCardProps {
 }
 
 export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps) {
-    const { status, title, guest, date, progress, imageUrl, duration, issues, views, processingStage } = episode;
+    const { status, title, guest, date, progress, imageUrl, duration, issues, views, processingStage, episodeNumber, description } = episode;
     const episodeId = episode._id || episode.id;
 
     const isLibrary = variant === 'library';
+
+    // [NEW] Duration State
+    const [videoDuration, setVideoDuration] = useState<string | undefined>(duration !== "00:00" ? duration : undefined);
+
+    const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        const seconds = e.currentTarget.duration;
+        if (!isNaN(seconds) && seconds > 0) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            const formatted = h > 0
+                ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+                : `${m}:${s.toString().padStart(2, '0')}`;
+            setVideoDuration(formatted);
+        }
+    };
 
     // Date Formatter
     const formatFriendlyDate = (dateStr: string) => {
         try {
             const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return dateStr; // Fallback if already formatted
+            if (isNaN(d.getTime())) return dateStr;
             const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
             return `${datePart} - ${timePart} GMT`;
@@ -57,7 +76,7 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
             <div className={`relative w-full aspect-video ${isLibrary ? 'rounded-xl shadow-2xl border border-white/10 mb-3' : 'rounded-2xl mb-6'} overflow-hidden bg-white/5`}>
 
                 {/* CONDITIONAL RENDER: Processing Visualizer or Video or Static Image */}
-                {status === 'processing' ? (
+                {status === 'processing' && !episode.videoUrl ? (
                     <ProcessingVisualizer stage={processingStage} />
                 ) : episode.videoUrl ? (
                     <div className="relative w-full h-full group/video">
@@ -67,6 +86,7 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                             muted
                             loop
                             playsInline
+                            onLoadedMetadata={handleLoadedMetadata}
                             onMouseOver={(e) => e.currentTarget.play()}
                             onMouseOut={(e) => e.currentTarget.pause()}
                         />
@@ -98,10 +118,7 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                     </>
                 )}
 
-                {/* Badges - Only show if NOT processing (visualizer handles its own status) OR if we want them on top. 
-                    Let's hide standard badges for processing since the visualizer is "loud". 
-                    Actually, keeping the processing badge might be redundant but "Action Required" / "Completed" need to stay. 
-                */}
+                {/* Badges */}
                 <div className={`absolute ${isLibrary ? 'top-3 left-3' : 'top-4 left-4'}`}>
                     {isLibrary ? (
                         // Library Badges
@@ -127,16 +144,18 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                     ) : (
                         // Dashboard Badges
                         <>
-                            {/* We hide the standard Processing badge in Dashboard view effectively because the visualizer dominates explanation 
-                                BUT if we want to be consistent, we can keep it. The user said "instead of having the placeholder image... reflect what is happening". 
-                                The visualizer does that. The badge is an overlay. I will keep it for consistency but maybe it's redundant. 
-                                Let's keep it for now.
-                            */}
                             {status === 'processing' && (
-                                <span className="flex items-center gap-2 bg-purple-500/80 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
-                                    <span className="size-1.5 rounded-full bg-white"></span>
-                                    Processing
-                                </span>
+                                episode.videoUrl ? (
+                                    <span className="flex items-center gap-2 bg-primary/80 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                        <span className="material-symbols-outlined text-[12px]">rate_review</span>
+                                        Pending Review
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2 bg-purple-500/80 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
+                                        <span className="size-1.5 rounded-full bg-white"></span>
+                                        Processing
+                                    </span>
+                                )
                             )}
                             {status === 'action_required' && (
                                 <span className="flex items-center gap-2 bg-red-500/80 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
@@ -155,9 +174,9 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                 </div>
 
                 {/* Library Duration Badge */}
-                {isLibrary && duration && (
+                {isLibrary && videoDuration && (
                     <div className="absolute bottom-3 right-3 px-2 py-1 rounded bg-black/80 text-white text-[10px] font-bold">
-                        {duration}
+                        {videoDuration}
                     </div>
                 )}
             </div>
@@ -168,13 +187,21 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
                         status === 'completed' ? 'group-hover:text-[#0bda87] library:group-hover:text-primary' :
                             'group-hover:text-primary'
                         } ${isLibrary ? 'text-white line-clamp-2 leading-tight' : 'text-xl line-clamp-1'}`}>
+                        {episodeNumber !== undefined && <span className="text-white/50 mr-2">#{episodeNumber}</span>}
                         {title}
                     </h4>
 
                     {!isLibrary && (
-                        <p className="text-white/40 text-sm">
-                            {formatFriendlyDate(date)}
-                        </p>
+                        <>
+                            <p className="text-white/40 text-sm">
+                                {formatFriendlyDate(date)}
+                            </p>
+                            {description && (
+                                <p className="text-white/60 text-xs line-clamp-2 mt-2 font-medium">
+                                    {description}
+                                </p>
+                            )}
+                        </>
                     )}
 
                     {isLibrary && (
@@ -187,10 +214,9 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
 
                 {!isLibrary && (
                     <>
-                        {status === 'processing' && (
+                        {status === 'processing' && !episode.videoUrl && (
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center text-xs">
-                                    {/* Updated Text to match Visualizer vibe slightly, or keep generic */}
                                     <span className="text-white/60">System Processing...</span>
                                     <span className="text-primary font-bold">{progress}%</span>
                                 </div>
@@ -229,9 +255,13 @@ export function EpisodeCard({ episode, variant = 'dashboard' }: EpisodeCardProps
 
                         {(status === 'processing' || status === 'action_required') && (
                             <div className="flex items-center gap-4 text-xs text-white/50 pt-2">
-                                {duration && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> {duration}</span>}
-                                {/* HD Icon Removed */}
-                                {status === 'action_required' && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">history</span> Pending Review</span>}
+                                {(videoDuration || duration) && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> {videoDuration || duration || "00:00"}</span>}
+                                {(status === 'action_required' || (status === 'processing' && episode.videoUrl)) && (
+                                    <span className="flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-sm">history</span>
+                                        Pending Review
+                                    </span>
+                                )}
                             </div>
                         )}
                     </>

@@ -21,6 +21,7 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
     const [title, setTitle] = useState('');
     const [episodeNumber, setEpisodeNumber] = useState(24);
     const [language, setLanguage] = useState<'en' | 'ar'>('en');
+    const [description, setDescription] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const { uploadFile, isUploading, progress } = useFileUpload();
     const createEpisode = useMutation(api.episodes.create);
@@ -92,6 +93,7 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
             const newEpisodeId = await createEpisode({
                 title,
                 episodeNumber,
+                description,
                 storageId: storageId as any,
                 language,
                 waveformId: waveformId as any, // Pass the ID directly
@@ -213,6 +215,8 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
                                         <section className="space-y-3">
                                             <label className="text-xs font-bold uppercase tracking-widest text-white/40 block">Production Notes</label>
                                             <textarea
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
                                                 rows={3}
                                                 placeholder="Add any specific instructions for the editors..."
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all resize-none text-sm"

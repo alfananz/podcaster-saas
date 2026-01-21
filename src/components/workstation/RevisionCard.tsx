@@ -70,11 +70,11 @@ export function RevisionCard({ batch, index, totalBatches, active, onSeek }: Rev
     };
 
     return (
-        <div className={cn("relative pl-10 mb-8 group transition-all duration-300", !active && !isResolved && "opacity-60 hover:opacity-100 grayscale-[0.5] hover:grayscale-0")}>
-            {/* Timeline Dot */}
+        <div className={cn("relative pl-4 mb-6 group transition-all duration-300", !active && !isResolved && "opacity-60 hover:opacity-100 grayscale-[0.5] hover:grayscale-0")}>
+            {/* Timeline Dot - Aligned with Rail at -23px */}
             <div
                 className={cn(
-                    "absolute left-[5px] top-6 size-[12px] rounded-full z-10 border-2 border-[#16181d]",
+                    "absolute -left-[29px] top-6 size-[12px] rounded-full z-10 border-2 border-[#16181d]",
                     active
                         ? "bg-[#ff4dc3] shadow-[0_0_12px_#ff4dc3]"
                         : "bg-[#3DD263] shadow-[0_0_12px_rgba(61,210,99,0.3)]"
@@ -117,7 +117,15 @@ export function RevisionCard({ batch, index, totalBatches, active, onSeek }: Rev
                         </div>
                     </div>
 
-                
+                    {/* Action Button */}
+                    <button className={cn(
+                        "transition-all text-xs font-bold px-3 py-1.5 rounded-lg",
+                        active
+                            ? "bg-[#ff4dc3]/10 text-[#ff4dc3] hover:bg-[#ff4dc3] hover:text-white border border-[#ff4dc3]/20"
+                            : "bg-white/5 text-white/40 hover:text-white border border-white/5"
+                    )}>
+                        {active ? "Update Status" : "Details"}
+                    </button>
                 </div>
 
                 {/* General Brief Box - Compact */}
@@ -162,10 +170,16 @@ export function RevisionCard({ batch, index, totalBatches, active, onSeek }: Rev
                                 </span>
                             </div>
 
-                            {active && onSeek && (
+                            {/* Timeline Pill (Shown for both Active and Resolved) */}
+                            {onSeek && (
                                 <button
                                     onClick={() => onSeek(comment.timestamp)}
-                                    className="bg-[#4FC0EE]/10 text-[#4FC0EE] px-2 py-0.5 rounded text-[10px] font-bold hover:bg-[#4FC0EE] hover:text-[#16181d] transition-all"
+                                    className={cn(
+                                        "px-2 py-0.5 rounded text-[10px] font-bold transition-all",
+                                        active
+                                            ? "bg-[#4FC0EE]/10 text-[#4FC0EE] hover:bg-[#4FC0EE] hover:text-[#16181d]"
+                                            : "bg-white/5 text-white/30 hover:text-white"
+                                    )}
                                 >
                                     {formatTime(comment.timestamp)}
                                 </button>

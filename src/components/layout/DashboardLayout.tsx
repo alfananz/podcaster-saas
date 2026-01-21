@@ -2,7 +2,7 @@ import { Sidebar } from './Sidebar';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
-        <div className="min-h-screen text-white font-display">
+        <div className="min-h-screen text-white font-display bg-[#0a0612]">
             <Sidebar />
 
             <main className="lg:ml-72 min-h-screen p-8 lg:p-12">

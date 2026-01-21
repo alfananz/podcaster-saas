@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -124,67 +124,89 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className,
     const activeBlockIndex = blocks.findIndex(block => currentTime >= block.startTime && currentTime <= block.endTime);
 
     // Smooth scrolling logic using requestAnimationFrame for "camera follow" feel
+    // [MODIFIED] Added explicit seek handling
+
+    const isHoveringRef = useRef(false); // Use ref for mutable access in rAF
+    const [isCopied, setIsCopied] = useState(false);
+
+    // [MODIFED] Simpler "Always Center" logic
+    const prevTimeRef = useRef(currentTime);
+    const lastScrolledRef = useRef<string | null>(null);
+
     useEffect(() => {
-        let animationFrameId: number;
-        let isHovering = false;
-
-        // Add hover listeners to pause auto-scroll when user interacts
+        if (!scrollRef.current) return;
         const container = scrollRef.current;
-        if (container) {
-            const onMouseEnter = () => { isHovering = true; };
-            const onMouseLeave = () => { isHovering = false; };
-            container.addEventListener('mouseenter', onMouseEnter);
-            container.addEventListener('mouseleave', onMouseLeave);
 
-            // Cleanup listeners
-            // We do this inside the render/effect closure but ideally we want to attach once.
-            // For simplicity in this replacement, we attach here.
+        // 1. Determine if this was a seek (large jump)
+        const delta = Math.abs(currentTime - prevTimeRef.current);
+        const isSeek = delta > 0.5;
+        prevTimeRef.current = currentTime;
+
+        // 2. Hover check (Suspend only auto-scroll, allow seek)
+        if (isHoveringRef.current && !isSeek) return;
+
+        // 3. Find active element
+        let activeEl = container.querySelector('[data-active="true"]') as HTMLElement;
+
+        // Fallback for gaps
+        if (!activeEl && segments.length > 0) {
+            const closest = segments.reduce((prev, curr) =>
+                Math.abs(curr.start - currentTime) < Math.abs(prev.start - currentTime) ? curr : prev
+            );
+            if (closest) {
+                activeEl = container.querySelector(`[data-start="${closest.start}"]`) as HTMLElement;
+            }
         }
 
-        const smoothScroll = () => {
-            if (scrollRef.current && !isHovering) {
-                const container = scrollRef.current;
-                const activeEl = container.querySelector('[data-active="true"]') as HTMLElement;
+        if (!activeEl) return;
 
-                if (activeEl) {
-                    // Calculate target position: element center - container half-height
-                    const elementTop = activeEl.offsetTop;
-                    const elementHeight = activeEl.offsetHeight;
-                    const containerHeight = container.offsetHeight;
+        // 4. Calculate Position relative to container
+        const containerRect = container.getBoundingClientRect();
+        const elRect = activeEl.getBoundingClientRect();
+        const activeWordStart = activeEl.dataset.start || null;
 
-                    const targetScrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
-                    const currentScrollTop = container.scrollTop;
+        if (isSeek) {
+            // FORCE CENTER on Seek
+            activeEl.scrollIntoView({ behavior: "auto", block: "center" });
+            lastScrolledRef.current = activeWordStart;
+        } else {
+            // [LAZY FOLLOW] Only scroll if element is leaving the "Safe Zone"
+            const relativeTop = elRect.top - containerRect.top;
+            const safeZoneTop = containerRect.height * 0.3;     // Top 30% border
+            const safeZoneBottom = containerRect.height * 0.7;  // Bottom 70% border
 
-                    // Interpolate Current -> Target (Smooth follow factor 0.05)
-                    const distance = targetScrollTop - currentScrollTop;
+            const isAbove = relativeTop < safeZoneTop;
+            const isBelow = (elRect.bottom - containerRect.top) > safeZoneBottom;
 
-                    // Only scroll if significant distance to allow manual override feeling or ignore small jitters
-                    if (Math.abs(distance) > 5) {
-                        container.scrollTop = currentScrollTop + (distance * 0.05);
-                    }
-                }
+            if ((isAbove || isBelow) && activeWordStart !== lastScrolledRef.current) {
+                activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                lastScrolledRef.current = activeWordStart;
             }
-            animationFrameId = requestAnimationFrame(smoothScroll);
-        };
+        }
+    }, [currentTime, segments]);
 
-        // Start the loop
-        animationFrameId = requestAnimationFrame(smoothScroll);
+    // Keep hover listeners simple
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const onMouseEnter = () => { isHoveringRef.current = true; };
+        const onMouseLeave = () => { isHoveringRef.current = false; };
+
+        container.addEventListener('mouseenter', onMouseEnter);
+        container.addEventListener('mouseleave', onMouseLeave);
 
         return () => {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            // Re-find container to remove listeners in cleanup if active (closure capture warning: use ref)
-            if (scrollRef.current) {
-                // Note: removeEventListener might fail if we define functions inside hook. 
-                // For now, this is a safe basic implementation.
-            }
+            container.removeEventListener('mouseenter', onMouseEnter);
+            container.removeEventListener('mouseleave', onMouseLeave);
         };
     }, []);
 
     const handleCopyTranscript = () => {
         const fullText = segments.map(s => `${s.speaker}: ${s.text}`).join('\n');
         navigator.clipboard.writeText(fullText);
-        // Toast or visual feedback could be added here
-        alert("Transcript copied to clipboard!");
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
     };
 
     const formatSpeaker = (speakerId: string) => {
@@ -258,12 +280,20 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className,
                 </div>
 
                 {/* Right Actions */}
+                {/* Right Actions */}
                 <button
                     onClick={handleCopyTranscript}
-                    className="size-8 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 border border-white/5 transition-colors cursor-pointer group"
-                    title="Copy Transcript"
+                    className={cn(
+                        "size-8 rounded-lg flex items-center justify-center transition-all duration-300 border cursor-pointer group",
+                        isCopied
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                            : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                    )}
+                    title={isCopied ? "Copied!" : "Copy Transcript"}
                 >
-                    <span className="material-symbols-outlined text-[18px] text-white/40 group-hover:text-white transition-colors">content_copy</span>
+                    <span className={cn("material-symbols-outlined text-[18px] transition-transform duration-300", isCopied && "scale-110")}>
+                        {isCopied ? "check" : "content_copy"}
+                    </span>
                 </button>
             </div >
 
@@ -332,7 +362,7 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className,
                                                     className={cn(
                                                         "transition-all duration-100 cursor-pointer rounded px-0.5 inline-block mx-[1px]",
                                                         isWordActive
-                                                            ? cn("scale-110 z-10 relative", speakerColor.highlight, "bg-white/5") // Restored Color + Added subtle bg + Removed font-bold
+                                                            ? cn("z-10 relative", speakerColor.highlight, "bg-white/5") // Removed scale-110
                                                             : isActiveBlock ? "text-white hover:text-white hover:bg-white/10" : "text-white/60 hover:text-white"
                                                     )}
                                                 >

@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 export const list = query({
     args: {},
     handler: async (ctx) => {
-        const episodes = await ctx.db.query("episodes").collect();
+        const episodes = await ctx.db.query("episodes").order("desc").collect();
 
         // Enrich with videoUrl from currentVersion if available
         const enriched = await Promise.all(episodes.map(async (ep) => {
@@ -39,6 +39,7 @@ export const create = mutation({
         title: v.string(),
         storageId: v.optional(v.id("_storage")), // Made optional to support draft flows, but pipeline requires it
         episodeNumber: v.number(),
+        description: v.optional(v.string()),
         language: v.optional(v.union(v.literal("en"), v.literal("ar"))),
         waveformId: v.optional(v.id("_storage")), // [NEW] Pre-computed waveform
     },
@@ -46,6 +47,8 @@ export const create = mutation({
         const episodeId = await ctx.db.insert("episodes", {
             title: args.title,
             storageId: args.storageId,
+            episodeNumber: args.episodeNumber,
+            description: args.description,
             date: new Date().toISOString(),
             status: "processing",
             processingStage: "queued", // Initial Stage
@@ -379,6 +382,28 @@ export const completeRevision = mutation({
             status: "processing", // Or whatever "In Review" maps to in your flow, user said "in_review" but schema has "processing" | "action_required" | "completed"
             // Let's assume "processing" with stage "completed" means "In Review" based on EditorHeader logic
             processingStage: "completed" as any
+        });
+    },
+});
+
+export const approve = mutation({
+    args: { episodeId: v.id("episodes") },
+    handler: async (ctx, args) => {
+        // 1. Resolve any open revision batches
+        const openBatch = await ctx.db
+            .query("revision_batches")
+            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
+            .filter((q) => q.eq(q.field("status"), "open"))
+            .first();
+
+        if (openBatch) {
+            await ctx.db.patch(openBatch._id, { status: "resolved", resolvedAt: Date.now() });
+        }
+
+        // 2. Update Episode Status
+        await ctx.db.patch(args.episodeId, {
+            status: "completed",
+            processingStage: "completed" as any,
         });
     },
 });
