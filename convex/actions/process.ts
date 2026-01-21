@@ -64,11 +64,17 @@ export const run = action({
                     stage: "transcribing",
                 });
                 // [FIX] Sync Episode UI
-                await mutationClient.mutation(api.episodes.updateProcessingStage, {
-                    episodeId: args.episodeId,
-                    stage: "transcribing",
-                    progress: 10,
-                });
+                console.log(`[Action:process] Syncing Episode Status to Transcribing...`);
+                try {
+                    await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                        episodeId: args.episodeId,
+                        stage: "transcribing",
+                        progress: 10,
+                    });
+                    console.log(`[Action:process] Sync Episode Status Success`);
+                } catch (err) {
+                    console.error(`[Action:process] Sync Episode Status FAILED:`, err);
+                }
             } else {
                 await mutationClient.mutation(api.episodes.updateProcessingStage, {
                     episodeId: args.episodeId,

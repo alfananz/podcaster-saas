@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DropzoneArea } from './DropzoneArea';
 import { AuroraProgressBar } from '@/components/ui/AuroraProgressBar';
@@ -15,6 +16,7 @@ interface NewEpisodeModalProps {
 type ModalView = 'form' | 'progress';
 
 export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
+    const router = useRouter();
     const [view, setView] = useState<ModalView>('form');
     const [title, setTitle] = useState('');
     const [episodeNumber, setEpisodeNumber] = useState(24);
@@ -87,7 +89,7 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
             }
 
             // 4. Create Episode Record
-            await createEpisode({
+            const newEpisodeId = await createEpisode({
                 title,
                 episodeNumber,
                 storageId: storageId as any,
@@ -98,6 +100,7 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
             // 5. Complete & Close
             setTimeout(() => {
                 handleClose();
+                router.push(`/episodes/${newEpisodeId}`);
             }, 1000);
 
         } catch (error) {

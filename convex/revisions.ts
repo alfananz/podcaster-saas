@@ -28,6 +28,18 @@ export const list = query({
                 avatar: "https://ui-avatars.com/api/?name=Client+User&background=random"
             };
 
+            // [NEW] Version Info
+            let versionInfo = null;
+            if (batch.versionId) {
+                const version = await ctx.db.get(batch.versionId);
+                if (version) {
+                    versionInfo = {
+                        name: version.name,
+                        number: version.versionNumber
+                    };
+                }
+            }
+
             // Format Relative Date
             const timeDiff = Date.now() - batch._creationTime;
             let timeAgo = "Just now";
@@ -43,6 +55,7 @@ export const list = query({
             return {
                 ...batch,
                 author,
+                versionInfo, // [NEW]
                 commentCount,
                 comments, // Return the full array
                 formattedDate: timeAgo,

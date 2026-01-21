@@ -15,6 +15,7 @@ export interface RevisionBatch {
     formattedDate: string;
     resolvedDate?: string | null;
     author: { name: string; avatar: string };
+    versionInfo?: { name: string; number: number } | null; // [NEW]
     comments: Array<{
         _id: Id<"comments">;
         timestamp: number;
@@ -69,116 +70,108 @@ export function RevisionCard({ batch, index, totalBatches, active, onSeek }: Rev
     };
 
     return (
-        <div className={cn("relative mb-12 group transition-all duration-300", !active && !isResolved && "opacity-60 hover:opacity-100 grayscale-[0.5] hover:grayscale-0")}>
-            {/* Timeline Anchor */}
+        <div className={cn("relative pl-10 mb-8 group transition-all duration-300", !active && !isResolved && "opacity-60 hover:opacity-100 grayscale-[0.5] hover:grayscale-0")}>
+            {/* Timeline Dot */}
             <div
                 className={cn(
-                    "absolute -left-[30px] top-8 size-4 rounded-full border-4 border-[#111317] ring-4 z-10",
-                    active ? "bg-[#ff4db5] ring-primary/20" : "bg-[#22EE66] ring-[#22EE66]/20"
+                    "absolute left-[5px] top-6 size-[12px] rounded-full z-10 border-2 border-[#16181d]",
+                    active
+                        ? "bg-[#ff4dc3] shadow-[0_0_12px_#ff4dc3]"
+                        : "bg-[#3DD263] shadow-[0_0_12px_rgba(61,210,99,0.3)]"
                 )}
             ></div>
 
-            <div className={cn("rounded-xl border transition-colors", active ? "border-[#ff4db5]/50" : "border-white/5")}>
-                <div className={cn("rounded-[14px] overflow-hidden", active ? "bg-gradient-to-br from-[#ff4db5]/10 via-transparent to-transparent" : "bg-[#1A1D23]/50")}>
-                    <div className="flex flex-col">
-
-                        {/* Top Info Bar */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
-                            <div className="flex items-center gap-4">
-                                <h3 className={cn("text-xl font-black tracking-tight", isResolved ? "text-white" : "text-[#ff4db5]")}>
-                                    REVISION {totalBatches - index}
-                                </h3>
-
-                                {active && (
-                                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ff4db5]/10 text-[#ff4db5] text-[10px] font-bold border border-[#ff4db5]/20 animate-pulse">
-                                        <span className="size-1.5 rounded-full bg-[#ff4db5]"></span>
-                                        ACTIVE
-                                    </span>
-                                )}
-
-                                {isResolved && (
-                                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22EE66]/10 text-[#22EE66] text-[10px] font-bold border border-[#22EE66]/20">
-                                        <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                                        RESOLVED
-                                    </span>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-2 text-white/40 text-[10px] font-mono uppercase tracking-widest">
-                                <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                                {batch.formattedDate}
-                            </div>
+            {/* Card Container - Compact Styling */}
+            <div
+                className={cn(
+                    "rounded-xl p-5 transition-all duration-300",
+                    "bg-[#2e323a]/40 backdrop-blur-md border border-white/5", // Glass Card Base
+                    active
+                        ? "border-[#ff4dc3]/50 shadow-[0_0_20px_rgba(255,77,195,0.1),inset_0_0_10px_rgba(255,77,195,0.05)]" // Active Glow
+                        : "border-[#3DD263]/20 hover:bg-[#2e323a]/60" // Resolved Border
+                )}
+            >
+                {/* Header */}
+                <div className="flex justify-between items-start mb-5">
+                    <div>
+                        <div className="flex items-baseline gap-3 mb-1.5">
+                            <h3 className="text-lg font-bold text-white leading-none">
+                                Revision {totalBatches - index}
+                                {batch.versionInfo && <span className="ml-2 font-normal text-white/50">- {batch.versionInfo.name}</span>}
+                            </h3>
                         </div>
 
-                        {/* Brief & Content */}
-                        <div className="p-6 space-y-6">
-                            {/* Brief Section */}
-                            <div className="space-y-4">
-                                <label className="text-white/30 text-[10px] font-bold uppercase tracking-widest">General Brief</label>
-                                <div className="flex gap-4">
-                                    <div className="flex-1 p-4 rounded-xl bg-white/5 border border-white/5 italic text-white/80 font-medium text-sm leading-relaxed flex gap-3">
-                                        <span className="material-symbols-outlined text-white/30">info</span>
-                                        "{batch.note}"
-                                    </div>
-                                </div>
+                        <div className="flex items-center gap-3 text-[11px] font-bold tracking-wide">
+                            {/* Status Text (No Pill) */}
+                            <div className={cn("flex items-center gap-2", active ? "text-[#ff4dc3]" : "text-[#3DD263]")}>
+                                <div className={cn("size-2 rounded-full", active ? "bg-[#ff4dc3] animate-pulse" : "bg-[#3DD263]")} />
+                                {active ? "IN PROGRESS" : "RESOLVED"}
                             </div>
 
-                            {/* Task List */}
-                            <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <label className="text-white/30 text-[10px] font-bold uppercase tracking-widest">
-                                        Granular Feedback ({batch.comments.length})
-                                    </label>
-                                </div>
+                            <span className="text-white/20 font-light">•</span>
 
-                                <div className="space-y-3">
-                                    {batch.comments.map((comment) => (
-                                        <div
-                                            key={comment._id}
-                                            className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/task"
-                                        >
-                                            {/* Timestamp Pill */}
-                                            <button
-                                                onClick={() => onSeek?.(comment.timestamp)}
-                                                className="px-3 py-1 rounded bg-[#3C8CE7]/10 text-[#3C8CE7] text-[10px] font-black font-mono tracking-tighter border border-[#3C8CE7]/20 hover:bg-[#3C8CE7]/20 transition-colors cursor-pointer"
-                                            >
-                                                [{formatTime(comment.timestamp)}]
-                                            </button>
-
-                                            <div className="flex-1">
-                                                <p className={cn("text-sm font-medium", comment.isResolved ? "text-white/40 line-through" : "text-white")}>
-                                                    {comment.text}
-                                                </p>
-                                            </div>
-
-                                            {/* Action Buttons (Mock for now, could be Resolve) */}
-                                            <div className="opacity-0 group-hover/task:opacity-100 transition-opacity flex gap-2">
-                                                {comment.isResolved ? (
-                                                    <span className="material-symbols-outlined text-[#22EE66]">check</span>
-                                                ) : (
-                                                    <button className="size-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-colors">
-                                                        <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            {/* Date */}
+                            <span className="text-white/30 font-medium normal-case tracking-normal">
+                                Started {batch.formattedDate}
+                            </span>
                         </div>
-
-                        {/* Approved By Footer (If Resolved) */}
-                        {isResolved && (
-                            <div className="px-6 py-4 bg-[#22EE66]/5 border-t border-[#22EE66]/10 flex items-center justify-between">
-                                <p className="text-[#22EE66] text-xs font-bold uppercase tracking-widest">
-                                    Approved by Lead Producer
-                                </p>
-                                <div className="size-6 rounded-full bg-[#22EE66]/20 flex items-center justify-center text-[#22EE66]">
-                                    <span className="material-symbols-outlined text-[14px]">done</span>
-                                </div>
-                            </div>
-                        )}
                     </div>
+
+                
+                </div>
+
+                {/* General Brief Box - Compact */}
+                {batch.note && (
+                    <div className={cn(
+                        "bg-[#1A1D23]/50 rounded-lg p-4 border-l-[3px] italic text-white/80 mb-6 text-sm leading-relaxed",
+                        active ? "border-[#ff4dc3]" : "border-[#3DD263]/50 text-white/60"
+                    )}>
+                        <div className="flex items-center gap-2 mb-2 not-italic">
+                            <span className={cn("material-symbols-outlined text-xs", active ? "text-[#ff4dc3]" : "text-[#3DD263]/70")}>sticky_note_2</span>
+                            <span className={cn("text-[10px] font-bold uppercase tracking-widest", active ? "text-[#ff4dc3]/70" : "text-[#3DD263]/50")}>General Brief</span>
+                        </div>
+                        "{batch.note}"
+                    </div>
+                )}
+
+                {/* Task List */}
+                <div className="space-y-3">
+                    {batch.comments.map((comment) => (
+                        <div
+                            key={comment._id}
+                            className={cn(
+                                "flex items-center justify-between p-2.5 rounded-lg border border-dashed transition-colors group",
+                                active
+                                    ? "border-white/10 hover:bg-white/5"
+                                    : "bg-[#3DD263]/5 border-transparent"
+                            )}
+                        >
+                            <div className="flex items-center gap-3">
+                                {/* Square Checkbox */}
+                                <div className={cn(
+                                    "size-5 rounded-[4px] flex items-center justify-center transition-colors border",
+                                    active
+                                        ? "border-[#ff4dc3]/40 cursor-pointer hover:bg-[#ff4dc3]/10 bg-transparent"
+                                        : "bg-[#3DD263] border-[#3DD263]"
+                                )}>
+                                    {!active && <span className="material-symbols-outlined text-[#16181d] text-[14px] font-bold">check</span>}
+                                </div>
+
+                                <span className={cn("text-sm font-medium", active ? "text-white/80 group-hover:text-white" : "text-white/40 line-through")}>
+                                    {comment.text}
+                                </span>
+                            </div>
+
+                            {active && onSeek && (
+                                <button
+                                    onClick={() => onSeek(comment.timestamp)}
+                                    className="bg-[#4FC0EE]/10 text-[#4FC0EE] px-2 py-0.5 rounded text-[10px] font-bold hover:bg-[#4FC0EE] hover:text-[#16181d] transition-all"
+                                >
+                                    {formatTime(comment.timestamp)}
+                                </button>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

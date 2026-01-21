@@ -158,6 +158,7 @@ export const updateProcessingStage = mutation({
         errorMessage: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        console.log(`[Mutation:updateProcessingStage] Episode: ${args.episodeId}, Stage: ${args.stage}, Progress: ${args.progress}`);
         const list = {
             processingStage: args.stage,
             ...(args.status ? { status: args.status } : {}),
@@ -165,6 +166,7 @@ export const updateProcessingStage = mutation({
             ...(args.errorMessage ? { issues: args.errorMessage } : {}),
         };
         await ctx.db.patch(args.episodeId, list);
+        console.log(`[Mutation:updateProcessingStage] PATCH COMPLETE`);
     },
 });
 

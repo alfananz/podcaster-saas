@@ -212,12 +212,20 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
 
 
     // --- CONTROLS HANDLERS ---
-    const handleTogglePlay = () => {
+    const handleTogglePlay = async () => {
         if (!videoElement) return;
         if (isPlaying) {
             videoElement.pause();
         } else {
-            videoElement.play();
+            try {
+                await videoElement.play();
+            } catch (e: any) {
+                // AbortError is common when play is interrupted by pause (e.g., rapid toggling or effect re-runs).
+                // We can safely ignore it to prevent runtime crashes.
+                if (e.name !== 'AbortError') {
+                    console.error("[AVSyncPlayer] Playback Error:", e);
+                }
+            }
         }
     };
 
