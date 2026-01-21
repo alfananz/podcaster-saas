@@ -18,6 +18,7 @@ interface TranscriptPanelProps {
     currentTime: number;
     onSeek?: (time: number) => void;
     className?: string; // New prop for styling flexibility
+    language?: "en" | "ar"; // [NEW]
 }
 
 interface SpeakerBlock {
@@ -79,7 +80,7 @@ const SPEAKER_COLORS = [
     }
 ];
 
-export function TranscriptPanel({ segments = [], currentTime, onSeek, className }: TranscriptPanelProps) {
+export function TranscriptPanel({ segments = [], currentTime, onSeek, className, language = "en" }: TranscriptPanelProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Identify unique speakers and assign colors
@@ -124,13 +125,26 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
 
     // Auto-scroll logic (scroll to active BLOCK)
     useEffect(() => {
-        if (activeBlockIndex !== -1 && scrollRef.current) {
+        // [MODIFIED] Only auto-scroll if we are deeper into the transcript.
+        // If it's the first block (index 0), we likely want to be at the very top anyway,
+        // but let's ensure we are scrolled to top specifically on mount or reset.
+        if (activeBlockIndex > 0 && scrollRef.current) {
             const activeElement = scrollRef.current.children[activeBlockIndex] as HTMLElement;
             if (activeElement) {
                 activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+        } else if (activeBlockIndex === 0 && scrollRef.current) {
+            // Ensure top visibility at start
+            scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }, [activeBlockIndex]);
+
+    const handleCopyTranscript = () => {
+        const fullText = segments.map(s => `${s.speaker}: ${s.text}`).join('\n');
+        navigator.clipboard.writeText(fullText);
+        // Toast or visual feedback could be added here
+        alert("Transcript copied to clipboard!");
+    };
 
     const formatSpeaker = (speakerId: string) => {
         // Handle "speaker_0", "speaker_1" etc. or raw names
@@ -179,6 +193,7 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
                             <span className="material-symbols-outlined text-primary text-[18px]">description</span>
                         </div>
                         <span className="text-xs font-black uppercase tracking-widest text-white">Live Transcript</span>
+                        {language === 'ar' && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/50 font-bold">AR</span>}
                     </div>
 
                     {/* Separator */}
@@ -202,12 +217,16 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
                 </div>
 
                 {/* Right Actions */}
-                <button className="size-8 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 border border-white/5 transition-colors cursor-pointer group">
-                    <span className="material-symbols-outlined text-[18px] text-white/40 group-hover:text-white transition-colors">download</span>
+                <button
+                    onClick={handleCopyTranscript}
+                    className="size-8 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 border border-white/5 transition-colors cursor-pointer group"
+                    title="Copy Transcript"
+                >
+                    <span className="material-symbols-outlined text-[18px] text-white/40 group-hover:text-white transition-colors">content_copy</span>
                 </button>
-            </div>
+            </div >
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide relative" ref={scrollRef}>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide relative" ref={scrollRef} dir={language === 'ar' ? 'rtl' : 'ltr'}>
                 {blocks.map((block, idx) => {
                     const isActiveBlock = idx === activeBlockIndex;
                     const speakerColor = speakerMap.map.get(block.speaker) || SPEAKER_COLORS[0];
@@ -287,6 +306,6 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className 
                 {/* Padding at bottom for scroll */}
                 <div className="h-20"></div>
             </div>
-        </section>
+        </section >
     );
 }

@@ -39,6 +39,8 @@ export const create = mutation({
         title: v.string(),
         storageId: v.optional(v.id("_storage")), // Made optional to support draft flows, but pipeline requires it
         episodeNumber: v.number(),
+        language: v.optional(v.union(v.literal("en"), v.literal("ar"))),
+        waveformId: v.optional(v.id("_storage")), // [NEW] Pre-computed waveform
     },
     handler: async (ctx, args) => {
         const episodeId = await ctx.db.insert("episodes", {
@@ -51,6 +53,8 @@ export const create = mutation({
             imageUrl: "https://placehold.co/600x400/1a1a1a/ffffff?text=Processing",
             duration: "00:00",
             issues: undefined,
+            language: args.language || "en", // Default to English
+            waveformId: args.waveformId, // [NEW] Store it
         });
 
         // Atomic Scheduling: If storageId is present, start the pipeline immediately.
@@ -76,6 +80,7 @@ export const create = mutation({
             await ctx.scheduler.runAfter(0, (internal as any).actions.process.run, {
                 episodeId,
                 storageId: args.storageId,
+                versionId, // [NEW] Version Context
             });
         }
 
@@ -85,24 +90,39 @@ export const create = mutation({
 
 import { Id } from "./_generated/dataModel";
 
-export const get = query({
-    args: { id: v.string() }, // Changed from v.id() to v.string() for robustness
+// [NEW] Save Persistent Waveform
+export const saveWaveform = mutation({
+    args: {
+        episodeId: v.id("episodes"),
+        storageId: v.id("_storage"),
+    },
     handler: async (ctx, args) => {
-        try {
-            // 1. Manually cast to ID
-            const episodeId = args.id as Id<"episodes">;
+        await ctx.db.patch(args.episodeId, {
+            waveformId: args.storageId,
+        });
+    },
+});
 
-            // 2. Fetch
-            const episode = await ctx.db.get(episodeId);
+export const get = query({
+    args: { id: v.string() }, // Accept string to handle potential raw ID from URL
+    handler: async (ctx, args) => {
+        // Safe ID conversion
+        const episodeId = ctx.db.normalizeId("episodes", args.id);
+        if (!episodeId) return null;
 
-            // 3. Debug Log
-            console.log(`[Backend] Fetching episode ${args.id}:`, episode ? "FOUND" : "NOT FOUND");
+        const episode = await ctx.db.get(episodeId);
+        if (!episode) return null;
 
-            return episode;
-        } catch (e) {
-            console.error("[Backend] Error fetching episode:", e);
-            return null;
+        // Get Waveform URL if it exists
+        let waveformUrl = null;
+        if (episode.waveformId) {
+            waveformUrl = await ctx.storage.getUrl(episode.waveformId);
         }
+
+        return {
+            ...episode,
+            waveformUrl, // [NEW] Return the signed URL for the waveform JSON
+        };
     },
 });
 

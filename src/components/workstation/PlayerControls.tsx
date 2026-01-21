@@ -91,37 +91,16 @@ export function PlayerControls({
                 </div>
 
                 {/* Main Control Section */}
-                <div className="flex items-center justify-between px-1">
+                <div className="relative flex items-center justify-between px-1 h-10">
 
-                    {/* Left: Playback Controls */}
-                    <div className="flex items-center gap-4">
-                        <button onClick={onSkipBack} className="text-white/70 hover:text-white transition-colors">
-                            <span className="material-symbols-outlined text-xl">skip_previous</span>
-                        </button>
-
-                        {/* Minimalist Outline Play Button */}
-                        <button
-                            onClick={onTogglePlay}
-                            className="group relative flex size-10 items-center justify-center rounded-full border border-white/20 transition-all hover:border-[#ff6bb5]/50 hover:bg-[#ff6bb5]/10"
-                        >
-                            <span className={`material-symbols-outlined text-2xl transition-all group-hover:text-[#ff6bb5] ${isPlaying ? 'fill-1' : ''}`}>
-                                {isPlaying ? 'pause' : 'play_arrow'}
-                            </span>
-                        </button>
-
-                        <button onClick={onSkipForward} className="text-white/70 hover:text-white transition-colors">
-                            <span className="material-symbols-outlined text-xl">skip_next</span>
-                        </button>
-                    </div>
-
-                    {/* Middle: Volume Slider */}
+                    {/* Left: Volume Slider */}
                     <div
-                        className="hidden md:flex items-center gap-3 group/vol relative"
+                        className="flex items-center gap-3 group/vol relative"
                         onMouseEnter={() => setIsHoveringVolume(true)}
                         onMouseLeave={() => setIsHoveringVolume(false)}
                     >
                         {/* Tooltip */}
-                        <div className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[9px] font-bold text-white bg-white/10 backdrop-blur-md border border-white/10 transition-opacity whitespace-nowrap ${isHoveringVolume ? 'opacity-100' : 'opacity-0'}`}>
+                        <div className={`absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[9px] font-bold text-white bg-white/10 backdrop-blur-md border border-white/10 transition-opacity whitespace-nowrappointer-events-none ${isHoveringVolume ? 'opacity-100' : 'opacity-0'}`}>
                             {Math.round(localVolume * 100)}%
                         </div>
 
@@ -131,35 +110,38 @@ export function PlayerControls({
                             </span>
                         </button>
 
-                        <div
-                            className="w-20 h-1 bg-white/10 rounded-full relative overflow-hidden cursor-pointer"
-                            ref={volumeBarRef}
-                            onClick={handleVolumeClick}
-                        >
-                            <div
-                                className="absolute inset-y-0 left-0 bg-white/80 rounded-full"
-                                style={{ width: `${localVolume * 100}%` }}
-                            ></div>
-                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={localVolume}
+                            onChange={(e) => {
+                                const newVol = parseFloat(e.target.value);
+                                setLocalVolume(newVol);
+                                onVolumeChange?.(newVol);
+                            }}
+                            className="w-20 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:box-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all hover:h-1.5 focus:outline-none"
+                            style={{
+                                backgroundImage: `linear-gradient(to right, white ${localVolume * 100}%, rgba(255,255,255,0.1) ${localVolume * 100}%)`
+                            }}
+                        />
                     </div>
 
-                    {/* Right: Utility Controls */}
+                    {/* Center: Play Button */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                        <button
+                            onClick={onTogglePlay}
+                            className="group relative flex size-10 items-center justify-center rounded-full border border-white/20 transition-all hover:border-[#ff6bb5]/50 hover:bg-[#ff6bb5]/10"
+                        >
+                            <span className={`material-symbols-outlined text-2xl transition-all group-hover:text-[#ff6bb5] ${isPlaying ? 'fill-1' : ''}`}>
+                                {isPlaying ? 'pause' : 'play_arrow'}
+                            </span>
+                        </button>
+                    </div>
+
+                    {/* Right: Fullscreen */}
                     <div className="flex items-center gap-1">
-                        {/* Settings with Tooltip */}
-                        <div className="group/settings relative">
-                            <button className="p-1.5 text-white/60 hover:text-white hover:rotate-45 transition-all">
-                                <span className="material-symbols-outlined text-xl">settings</span>
-                            </button>
-                        </div>
-
-                        <button className="p-1.5 text-white/60 hover:text-white transition-colors">
-                            <span className="material-symbols-outlined text-xl">closed_caption</span>
-                        </button>
-
-                        <button className="p-1.5 text-white/60 hover:text-white transition-colors">
-                            <span className="material-symbols-outlined text-xl">branding_watermark</span>
-                        </button>
-
                         <button
                             onClick={onFullscreen}
                             className="ml-1 p-1.5 rounded-lg bg-[#ff6bb5]/10 text-[#ff6bb5] hover:bg-[#ff6bb5] hover:text-black transition-all"

@@ -40,8 +40,9 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
     const isError = status === 'action_required' && processingStage === 'failed';
 
     return (
-        <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/20 backdrop-blur-md sticky top-0 z-10 w-full">
-            <div className="flex items-center gap-6">
+        <header className="h-20 border-b border-white/5 flex items-center bg-black/20 backdrop-blur-md sticky top-0 z-10 w-full">
+            {/* LEFT COLUMN: Title & Status - Matches Main Workspace Width */}
+            <div className="flex-1 pl-8 flex items-center gap-6">
                 <div className="flex flex-col">
                     <div className="flex items-center gap-3">
                         <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
@@ -65,32 +66,46 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
                     </div>
                 </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* RIGHT COLUMN: Action Buttons - Matches Sidebar Width */}
+            <div className="w-1/3 min-w-[400px] border-l border-white/5 flex items-center justify-between px-4 mt-4 gap-2">
+                {/* Delete Button */}
                 <button
                     onClick={handleDeleteClick}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-500/20 bg-red-500/10 text-sm font-bold text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
+                    className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-transparent hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all duration-300 ease-out gap-2"
                     title="Delete Episode"
                 >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
+                        Delete
+                    </span>
                 </button>
+
+                {/* Request Changes Button */}
                 <button
                     onClick={hasOpenRevision ? undefined : onRequestChanges}
                     disabled={hasOpenRevision}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-bold transition-all
+                    className={`flex-1 flex items-center justify-center h-10 px-2 rounded-full border transition-all duration-300 ease-out gap-2
                         ${hasOpenRevision
-                            ? 'border-white/5 bg-white/5 text-white/30 cursor-not-allowed'
-                            : 'border-white/10 bg-white/5 text-white hover:bg-white/10 cursor-pointer'
+                            ? 'bg-transparent border-white/5 text-white/30 cursor-not-allowed'
+                            : 'bg-transparent hover:bg-[#ff3399]/10 border-[#ff3399]/20 text-[#ff3399] hover:text-white hover:shadow-[0_0_20px_rgba(255,51,153,0.4)]'
                         }
                     `}
                 >
                     <span className="material-symbols-outlined text-[18px]">
                         {hasOpenRevision ? 'hourglass_top' : 'edit_note'}
                     </span>
-                    {hasOpenRevision ? 'Revision Pending' : 'Request Changes'}
+                    <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
+                        {hasOpenRevision ? 'Pending' : 'Request Changes'}
+                    </span>
                 </button>
-                <button className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 hover:opacity-90 transition-all cursor-pointer">
+
+                {/* Approve Button */}
+                <button className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-transparent hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all duration-300 ease-out hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] gap-2">
                     <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    Approve Episode
+                    <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
+                        Approve
+                    </span>
                 </button>
             </div>
             <DeleteEpisodeModal

@@ -5,6 +5,7 @@ import { AuroraProgressBar } from '@/components/ui/AuroraProgressBar';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import WaveSurfer from 'wavesurfer.js';
 
 interface NewEpisodeModalProps {
     isOpen: boolean;
@@ -17,9 +18,11 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
     const [view, setView] = useState<ModalView>('form');
     const [title, setTitle] = useState('');
     const [episodeNumber, setEpisodeNumber] = useState(24);
+    const [language, setLanguage] = useState<'en' | 'ar'>('en');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const { uploadFile, isUploading, progress } = useFileUpload();
     const createEpisode = useMutation(api.episodes.create);
+    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
     const handleSubmit = async () => {
         if (!title || !selectedFile) return;
@@ -27,31 +30,88 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
         setView('progress');
 
         try {
-            // 1. Upload File
-            const storageId = await uploadFile(selectedFile);
+            // 1. Parallel Execution setup
+            const videoUploadPromise = uploadFile(selectedFile);
 
-            // 2. Create Episode Record (Triggers background processing)
+            // 2. Waveform Generation & Upload (Fire & Forget style relative to UI, but await relative to creation)
+            const waveformPromise = (async () => {
+                console.log("[Client] Generating waveform peaks...");
+                const peaks = await new Promise<any[]>((resolve, reject) => {
+                    const ws = WaveSurfer.create({
+                        container: document.createElement('div'),
+                        waveColor: 'white',
+                    });
+                    const url = URL.createObjectURL(selectedFile);
+                    ws.load(url);
+                    ws.on('ready', () => {
+                        const start = Date.now();
+                        const p = ws.exportPeaks(); // Default precision
+                        console.log(`[Client] Peaks generated in ${Date.now() - start}ms`);
+                        ws.destroy();
+                        URL.revokeObjectURL(url);
+                        resolve(p);
+                    });
+                    ws.on('error', (e) => reject(e));
+                });
+
+                const blob = new Blob([JSON.stringify({ data: peaks })], { type: 'application/json' });
+                const postUrl = await generateUploadUrl();
+
+                const result = await fetch(postUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: blob,
+                });
+
+                const { storageId } = await result.json();
+                console.log("[Client] Waveform uploaded:", storageId);
+                return storageId;
+            })();
+
+            // 3. Wait for BOTH
+            // Note: We use Promise.allSettled or just all. If waveform fails, we might still want to proceed? 
+            // The user requested "ensure everything processes". So let's stick to Promise.all
+            // But to be safe, we catch waveform errors specifically.
+
+            let storageId;
+            let waveformId;
+
+            try {
+                const results = await Promise.all([videoUploadPromise, waveformPromise]);
+                storageId = results[0];
+                waveformId = results[1];
+            } catch (err) {
+                console.warn("Waveform generation failed, proceeding with just video:", err);
+                storageId = await videoUploadPromise; // Ensure video at least finishes
+                // waveformId remains undefined
+            }
+
+            // 4. Create Episode Record
             await createEpisode({
                 title,
                 episodeNumber,
                 storageId: storageId as any,
+                language,
+                waveformId: waveformId as any, // Pass the ID directly
             });
 
-            // 4. Complete & Close (small delay to show success state)
+            // 5. Complete & Close
             setTimeout(() => {
                 handleClose();
             }, 1000);
 
         } catch (error) {
             console.error("Upload failed:", error);
-            // Revert view on error (improvement: show error state)
             setView('form');
         }
     };
 
     const handleClose = () => {
         if (isUploading) return;
+        if (isUploading) return;
         setTitle('');
+        setEpisodeNumber(24);
+        setLanguage('en');
         setSelectedFile(null);
         setView('form');
         onClose();
@@ -108,7 +168,7 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
                                         </section>
 
                                         {/* Meta Data Form */}
-                                        <section className="grid grid-cols-3 gap-6">
+                                        <section className="grid grid-cols-4 gap-6">
                                             <div className="col-span-2 space-y-3">
                                                 <label className="text-xs font-bold uppercase tracking-widest text-white/40 block">Episode Title</label>
                                                 <input
@@ -118,6 +178,20 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
                                                     placeholder="e.g. The Future of AI Production"
                                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all font-medium"
                                                 />
+                                            </div>
+                                            <div className="col-span-1 space-y-3">
+                                                <label className="text-xs font-bold uppercase tracking-widest text-white/40 block">Language</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={language}
+                                                        onChange={(e) => setLanguage(e.target.value as 'en' | 'ar')}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all font-medium appearance-none cursor-pointer"
+                                                    >
+                                                        <option value="en">English</option>
+                                                        <option value="ar">Arabic</option>
+                                                    </select>
+                                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-[18px]">expand_more</span>
+                                                </div>
                                             </div>
                                             <div className="col-span-1 space-y-3">
                                                 <label className="text-xs font-bold uppercase tracking-widest text-white/40 block">Episode #</label>

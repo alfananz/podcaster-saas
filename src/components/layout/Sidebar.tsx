@@ -16,9 +16,8 @@ export function Sidebar() {
 
     const links = [
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-        { href: "/revisions", label: "Revisions", icon: "history_edu" },
         { href: "/episodes", label: "Episodes", icon: "video_library" },
-        { href: "#", label: "Templates", icon: "auto_awesome_motion" },
+        { href: "/revisions", label: "Revisions", icon: "history_edu" },
         { href: "/media", label: "Media Library", icon: "folder_open" },
         { href: "#", label: "Analytics", icon: "monitoring" },
     ];
@@ -63,6 +62,7 @@ export function Sidebar() {
             </nav>
 
             <div className="mt-auto pt-6 space-y-4">
+                
                 <div className="bg-white/5 rounded-3xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-2">
                         <p className="text-xs text-white/60">Storage used</p>

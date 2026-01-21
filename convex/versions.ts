@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 export const create = mutation({
     args: {
@@ -40,6 +41,13 @@ export const create = mutation({
             // For now, let's strictly rely on currentVersionId logic in frontend.
         });
 
+        // 4. Trigger Processing for this new version
+        await ctx.scheduler.runAfter(0, (internal as any).actions.process.run, {
+            episodeId: args.episodeId,
+            storageId: args.storageId,
+            versionId, // [NEW] Link processing to this version
+        });
+
         return versionId;
     },
 });
@@ -52,7 +60,20 @@ export const list = query({
             .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
             .order("desc") // Latest first
             .collect();
-        return versions;
+
+        // Enrich with waveformUrl
+        const enriched = await Promise.all(versions.map(async (v) => {
+            let waveformUrl = null;
+            if (v.waveformId) {
+                waveformUrl = await ctx.storage.getUrl(v.waveformId);
+            }
+            return {
+                ...v,
+                waveformUrl,
+            };
+        }));
+
+        return enriched;
     },
 });
 
@@ -60,5 +81,104 @@ export const get = query({
     args: { versionId: v.id("versions") },
     handler: async (ctx, args) => {
         return await ctx.db.get(args.versionId);
+    },
+});
+export const updateProcessingStage = mutation({
+    args: {
+        versionId: v.id("versions"),
+        stage: v.union(
+            v.literal("queued"),
+            v.literal("transcribing"),
+            v.literal("enriching"),
+            v.literal("completed"),
+            v.literal("failed")
+        ),
+        waveformId: v.optional(v.id("_storage")),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.versionId, {
+            processingStage: args.stage,
+            ...(args.waveformId ? { waveformId: args.waveformId } : {}),
+        });
+    },
+});
+
+export const saveTranscript = mutation({
+    args: {
+        versionId: v.id("versions"),
+        transcriptJson: v.any(),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.versionId, {
+            transcriptJson: args.transcriptJson,
+        });
+    },
+});
+
+export const updateAIResults = mutation({
+    args: {
+        versionId: v.id("versions"),
+        transcript: v.string(),
+        segments: v.array(v.object({
+            start: v.number(),
+            end: v.number(),
+            text: v.string(),
+            speaker: v.string(),
+        })),
+        speakers: v.array(v.string()),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.versionId, {
+            transcript: args.transcript,
+            segments: args.segments,
+            speakers: args.speakers,
+        });
+    },
+});
+
+export const updateEnrichment = mutation({
+    args: {
+        versionId: v.id("versions"),
+        generatedTitle: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        aiSynopsis: v.optional(v.string()),
+        guestBio: v.optional(v.string()),
+        keyTakeaways: v.optional(v.array(v.string())),
+        seoTags: v.optional(v.array(v.string())),
+        chapters: v.optional(v.array(v.object({
+            startTime: v.number(),
+            title: v.string(),
+            description: v.optional(v.string())
+        }))),
+        resources: v.optional(v.array(v.object({
+            title: v.string(),
+            url: v.optional(v.string())
+        }))),
+        enrichmentStatus: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.versionId, {
+            generatedTitle: args.generatedTitle,
+            summary: args.summary,
+            aiSynopsis: args.aiSynopsis,
+            guestBio: args.guestBio,
+            keyTakeaways: args.keyTakeaways,
+            seoTags: args.seoTags,
+            chapters: args.chapters,
+            resources: args.resources,
+            enrichmentStatus: args.enrichmentStatus as any,
+        });
+    },
+});
+
+export const saveWaveform = mutation({
+    args: {
+        versionId: v.id("versions"),
+        storageId: v.id("_storage"),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.versionId, {
+            waveformId: args.storageId,
+        });
     },
 });

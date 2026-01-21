@@ -3,9 +3,15 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import WaveSurfer from "wavesurfer.js";
 import { PlayerControls } from "./PlayerControls";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 
 interface AVSyncPlayerProps {
+    episodeId?: Id<"episodes">;
+    versionId?: Id<"versions">; // [NEW] Context
     videoUrl: string;
+    waveformUrl?: string | null; // [NEW] Pre-computed peaks URL
     onTimeUpdate?: (time: number) => void;
     comments?: any[]; // Keep any for now to avoid specific type dependency, or define stricter
     title?: string;
@@ -16,7 +22,7 @@ export interface AVSyncPlayerRef {
     seekTo: (time: number) => void;
 }
 
-const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl, onTimeUpdate, comments = [], title, onReady }, ref) => {
+const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId, versionId, videoUrl, waveformUrl, onTimeUpdate, comments = [], title, onReady }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [hasMounted, setHasMounted] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -24,11 +30,23 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
     // Callback Refs to force re-render when elements are ready
     const [container, setContainer] = useState<HTMLDivElement | null>(null);
     const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+    const videoContainerRef = useRef<HTMLDivElement>(null); // [NEW] Video Wrapper
 
     const waveSurferRef = useRef<WaveSurfer | null>(null);
 
-    // Client-side guard
-    useEffect(() => { setHasMounted(true); }, []);
+    // Convex Mutations
+    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const saveWaveform = useMutation(api.episodes.saveWaveform);
+    const saveWaveformVersion = useMutation(api.versions.saveWaveform);
+
+    // Client-side guard & Immediate Ready
+    useEffect(() => {
+        setHasMounted(true);
+        // [OPTIMIZATION] - PREMIUM FEEL
+        // Don't wait for video metadata or waveform to dismiss the global spinner.
+        // Let the user into the UI immediately. The video player has its own buffering states if needed.
+        if (onReady) setTimeout(onReady, 0);
+    }, []);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -45,58 +63,124 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
         // 1. Wait for both Container AND Video Element
         if (!container || !videoElement || !videoUrl) return;
 
-        // 2. Destroy Prev Instance
-        if (waveSurferRef.current) {
-            waveSurferRef.current.destroy();
-            waveSurferRef.current = null;
-        }
+        let ws: WaveSurfer | null = null;
+        let isDestroyed = false;
 
-        // 3. Create New Instance linked to Video Element
-        // 3. Create New Instance linked to Video Element
-        console.log("[AVSyncPlayer] Creating WaveSurfer instance linked to video element...");
-        // Define fetch params to handle potential CORS/Auth issues with storage URLs
-        const ws = WaveSurfer.create({
-            container: container,
-            media: videoElement, // This is the MAGIC key. It binds WS to the video tag.
-            fetchParams: {
-                mode: 'cors',
-                credentials: 'omit',
-            },
-            waveColor: "rgba(255, 255, 255, 0.4)",
-            progressColor: "#3C8CE7",
-            height: 120,
-            barWidth: 4,
-            barGap: 3,
-            barRadius: 4,
-            fillParent: true,
-            interact: true,
-            cursorColor: "#3C8CE7",
-            cursorWidth: 2,
-            normalize: true,
-        });
+        // [OPTIMIZATION] Lazy Load Waveform
+        // Delay waveform generation slightly to prioritize UI rendering and Video playback startup.
+        const initTimer = setTimeout(async () => {
+            if (isDestroyed) return;
 
-        // 4. Attach Events
-        ws.on('ready', (d) => {
-            const vidDuration = videoElement?.duration;
-            if (vidDuration && vidDuration > 0 && vidDuration !== Infinity) {
-                console.log("[WaveSurfer] Ready. Using Native Video Duration:", vidDuration);
-                setDuration(vidDuration);
-            } else {
-                console.log("[WaveSurfer] Ready. Using WS Duration:", d);
-                setDuration(d);
+            // 2. Destroy Prev Instance
+            if (waveSurferRef.current) {
+                waveSurferRef.current.destroy();
+                waveSurferRef.current = null;
             }
-            if (onReady) onReady();
-        });
-        ws.on('error', (e) => console.error("[WaveSurfer] ERROR:", e));
 
-        // 5. Save Ref
-        waveSurferRef.current = ws;
+            console.log("[AVSyncPlayer] Initializing WaveSurfer...");
+
+            // 1. Fetch Peaks if URL exists
+            let preComputedPeaks = undefined;
+            if (waveformUrl) {
+                try {
+                    console.log("[AVSyncPlayer] Fetching pre-computed peaks from:", waveformUrl);
+                    const response = await fetch(waveformUrl);
+                    if (response.ok) {
+                        const json = await response.json();
+                        // WaveSurfer expects array of arrays (channels) or single array
+                        preComputedPeaks = json.data || json;
+                        console.log("[AVSyncPlayer] Loaded peaks successfully.");
+                    }
+                } catch (err) {
+                    console.error("[AVSyncPlayer] Failed to load peaks:", err);
+                }
+            }
+
+            // 2. Create New Instance linked to Video Element
+            console.log("[AVSyncPlayer] Creating WaveSurfer instance linked to video element...");
+            // Define fetch params to handle potential CORS/Auth issues with storage URLs
+            ws = WaveSurfer.create({
+                container: container,
+                media: videoElement, // This is the MAGIC key. It binds WS to the video tag.
+                url: videoUrl, // Pass URL directly here
+                peaks: preComputedPeaks, // [OPTIMIZATION] INSTANT RENDER
+                fetchParams: {
+                    mode: 'cors',
+                    credentials: 'omit',
+                },
+                waveColor: "rgba(255, 255, 255, 0.4)",
+                progressColor: "#3C8CE7",
+                height: 120,
+                barWidth: 4,
+                barGap: 3,
+                barRadius: 4,
+                fillParent: true,
+                interact: true,
+                cursorColor: "#3C8CE7",
+                cursorWidth: 2,
+                normalize: true,
+            });
+
+            // 4. Attach Events
+            ws.on('ready', async (d) => {
+                const vidDuration = videoElement?.duration;
+                if (vidDuration && vidDuration > 0 && vidDuration !== Infinity) {
+                    console.log("[WaveSurfer] Ready. Using Native Video Duration:", vidDuration);
+                    setDuration(vidDuration);
+                } else {
+                    console.log("[WaveSurfer] Ready. Using WS Duration:", d);
+                    setDuration(d);
+                }
+
+                // [NEW] Persistent Waveform Logic
+                // If we didn't load from a URL, we just generated them. Save them!
+                if (!waveformUrl && ws) {
+                    console.log("[WaveSurfer] Generated peaks locally. Saving to cloud...");
+                    const peaks = ws.exportPeaks(); // Default settings (channels etc)
+
+                    if (peaks && (peaks.length > 0 || (peaks[0] && peaks[0].length > 0))) {
+                        // Async Upload
+                        try {
+                            const postUrl = await generateUploadUrl();
+                            const result = await fetch(postUrl, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(peaks),
+                            });
+
+                            if (result.ok) {
+                                const { storageId } = await result.json();
+                                if (versionId) {
+                                    await saveWaveformVersion({ versionId, storageId });
+                                    console.log("Saved waveform to Version:", versionId);
+                                } else if (episodeId) {
+                                    await saveWaveform({ episodeId, storageId });
+                                    console.log("Saved waveform to Episode:", episodeId);
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Failed to save waveform:", err);
+                        }
+                    }
+                }
+            });
+            ws.on('error', (e) => {
+                console.error("[WaveSurfer] ERROR:", e);
+            });
+
+            // 5. Save Ref
+            waveSurferRef.current = ws;
+
+        }, 500); // 500ms delay to let the page breathe
 
         // Cleanup
         return () => {
-            ws.destroy();
+            isDestroyed = true;
+            clearTimeout(initTimer);
+            if (ws) ws.destroy();
+            if (waveSurferRef.current) waveSurferRef.current.destroy();
         };
-    }, [container, videoElement, videoUrl]);
+    }, [container, videoElement, videoUrl, waveformUrl, episodeId, versionId]);
 
     // Sync Logic: Video -> Waveform (Native Event Helper)
     const onTimeUpdateNative = () => {
@@ -155,9 +239,9 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
     };
 
     const handleFullscreen = () => {
-        if (container) {
+        if (videoContainerRef.current) {
             if (!document.fullscreenElement) {
-                container.requestFullscreen();
+                videoContainerRef.current.requestFullscreen();
             } else {
                 document.exitFullscreen();
             }
@@ -169,6 +253,7 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
     return (
         <div className="flex flex-col gap-6 w-full group/player">
             <div
+                ref={videoContainerRef}
                 className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 group relative"
             >
                 {/* RAW HTML5 VIDEO */}
@@ -189,6 +274,9 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ videoUrl,
                         if (d && d > 0 && d !== Infinity) {
                             setDuration(d);
                         }
+                        // OPTIMIZATION: Unblock the UI immediately when video metadata is known.
+                        // Don't wait for the heavy waveform to decode.
+                        // if (onReady) onReady(); // Removed as per instructions, onReady is called on mount
                     }}
                 />
 

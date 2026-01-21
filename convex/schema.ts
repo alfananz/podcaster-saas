@@ -57,7 +57,10 @@ export default defineSchema({
             v.literal("failed"),
             v.literal("revision_requested")
         )),
+        language: v.optional(v.union(v.literal("en"), v.literal("ar"))), // [NEW] Language Preference
+        waveformId: v.optional(v.id("_storage")), // [NEW] Persistent Waveform Storage ID
     }),
+
     versions: defineTable({
         episodeId: v.id("episodes"),
         versionNumber: v.number(),
@@ -68,6 +71,45 @@ export default defineSchema({
         status: v.union(v.literal("processing"), v.literal("active"), v.literal("archived")),
         changeLog: v.optional(v.string()), // "Fixed audio sync issues"
         uploadTime: v.number(),
+
+        // [NEW] Per-Version Processing State
+        processingStage: v.optional(v.union(
+            v.literal("queued"),
+            v.literal("transcribing"),
+            v.literal("enriching"),
+            v.literal("completed"),
+            v.literal("failed")
+        )),
+        waveformId: v.optional(v.id("_storage")),
+
+        // [NEW] Per-Version AI Data
+        transcript: v.optional(v.string()),
+        transcriptJson: v.optional(v.any()),
+        segments: v.optional(v.array(v.object({
+            start: v.number(),
+            end: v.number(),
+            text: v.string(),
+            speaker: v.string(),
+        }))),
+        speakers: v.optional(v.array(v.string())),
+
+        // [NEW] Per-Version Enrichment Data
+        generatedTitle: v.optional(v.string()),
+        summary: v.optional(v.string()),
+        aiSynopsis: v.optional(v.string()),
+        guestBio: v.optional(v.string()),
+        keyTakeaways: v.optional(v.array(v.string())),
+        seoTags: v.optional(v.array(v.string())),
+        chapters: v.optional(v.array(v.object({
+            startTime: v.number(),
+            title: v.string(),
+            description: v.optional(v.string())
+        }))),
+        resources: v.optional(v.array(v.object({
+            title: v.string(),
+            url: v.optional(v.string())
+        }))),
+        enrichmentStatus: v.optional(v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))),
     })
         .index("by_episode", ["episodeId"])
         .index("by_episode_version", ["episodeId", "versionNumber"]),

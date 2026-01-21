@@ -50,6 +50,9 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
     // [NEW] Derive Active Version Data
     const activeVersion = versions?.find(v => v._id === selectedVersionId);
 
+    // [NEW] Determine Data Source (Version vs Legacy Episode)
+    const effectiveData = activeVersion || episode;
+
     // Determine Storage ID: Favor selectedVersion, fallback to episode (legacy)
     const effectiveStorageId = activeVersion?.storageId || episode?.storageId;
 
@@ -102,7 +105,16 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
     // [NEW] Handle Version Switch
     const handleVersionSelect = (verId: Id<"versions">) => {
         if (verId === selectedVersionId) return;
+
+        // 1. Trigger Exit Transition
+        setIsClientReady(false); // Fades out the current player/workspace
+
+        // 2. Show Overlay
         setIsSwitchingVersion(true);
+
+        // 3. Change Data Source (Delayed slightly to allow fade-out to start?)
+        // Actually, changing ID triggers new fetch immediately. 
+        // We want the fade-out to happen visually.
         setSelectedVersionId(verId);
     };
 
@@ -163,8 +175,8 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                             <div className="absolute inset-4 rounded-full border-4 border-accent-cyan/50 border-b-transparent animate-spin-reverse"></div>
                         </div>
                         <div className="flex flex-col items-center gap-1">
-                            <h3 className="text-xl font-bold tracking-widest text-white uppercase">Loading Version</h3>
-                            <p className="text-primary text-xs font-mono tracking-[0.2em] animate-pulse">Syncing Timeline Data...</p>
+                            <h3 className="text-xl font-bold tracking-widest text-white uppercase">Switching Version</h3>
+                            <p className="text-primary text-xs font-mono tracking-[0.2em] animate-pulse">Re-aligning Neural Pathways...</p>
                         </div>
                     </div>
                 </div>
@@ -216,14 +228,17 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                         <AVSyncPlayer
                                             ref={playerRef}
                                             key={videoUrl}
+                                            episodeId={episode._id} // [NEW] For saving waveform
+                                            versionId={selectedVersionId} // [NEW] Version Context
                                             videoUrl={videoUrl}
+                                            waveformUrl={(effectiveData as any).waveformUrl} // [NEW] Version Specific
                                             onTimeUpdate={setCurrentTime}
                                             comments={comments || []}
                                             title={episode.title}
                                             onReady={() => {
                                                 console.log("AVSyncPlayer Ready: Lifting Pre-load Gate.");
                                                 setIsClientReady(true);
-                                                setIsSwitchingVersion(false); // [NEW] Clear switching state
+                                                setIsSwitchingVersion(false);
                                             }}
                                         />
                                     )}
@@ -233,10 +248,11 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                 <div className="glass-panel rounded-3xl flex-1 flex flex-col min-h-0 relative border border-white/5 bg-white/[0.02]">
                                     <div className="flex-1 overflow-hidden relative">
                                         <TranscriptPanel
-                                            segments={(episode as any).segments || []}
+                                            segments={(effectiveData as any).segments || []}
                                             currentTime={currentTime}
                                             onSeek={handleSeek}
                                             className="h-full w-full border-none bg-transparent p-0"
+                                            language={(effectiveData as any).language || 'en'}
                                         />
                                     </div>
                                 </div>
@@ -286,13 +302,13 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                     )}
                                     {activeTab === 'shownotes' && (
                                         <ShowNotesPanel
-                                            summary={episode.summary}
-                                            aiSynopsis={episode.aiSynopsis}
-                                            chapters={episode.chapters}
-                                            resources={episode.resources}
-                                            guestBio={episode.guestBio}
-                                            keyTakeaways={episode.keyTakeaways}
-                                            seoTags={episode.seoTags}
+                                            summary={(effectiveData as any).summary}
+                                            aiSynopsis={(effectiveData as any).aiSynopsis}
+                                            chapters={(effectiveData as any).chapters}
+                                            resources={(effectiveData as any).resources}
+                                            guestBio={(effectiveData as any).guestBio}
+                                            keyTakeaways={(effectiveData as any).keyTakeaways}
+                                            seoTags={(effectiveData as any).seoTags}
                                             onSeek={handleSeek}
                                         />
                                     )}

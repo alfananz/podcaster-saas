@@ -18,6 +18,7 @@ export const run = action({
     args: {
         episodeId: v.id("episodes"),
         storageId: v.id("_storage"),
+        versionId: v.optional(v.id("versions")), // [NEW] Optional Version Context
     },
     handler: async (ctx, args) => {
         // --- SELF-HOSTED NETWORKING FIX ---
@@ -55,13 +56,26 @@ export const run = action({
 
         try {
             // 1. Update State to Transcribing
-            console.log("STEP 0: Starting Process via Mutation Client");
-            // NOTE: We now use 'api' because we exposed these as public mutations for the manual client
-            await mutationClient.mutation(api.episodes.updateProcessingStage, {
-                episodeId: args.episodeId,
-                stage: "transcribing",
-                progress: 10,
-            });
+            console.log("STEP 0: Starting Process via Mutation Client", args.versionId ? `[Version ${args.versionId}]` : "[Legacy Episode]");
+
+            if (args.versionId) {
+                await mutationClient.mutation(api.versions.updateProcessingStage, {
+                    versionId: args.versionId,
+                    stage: "transcribing",
+                });
+                // [FIX] Sync Episode UI
+                await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                    episodeId: args.episodeId,
+                    stage: "transcribing",
+                    progress: 10,
+                });
+            } else {
+                await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                    episodeId: args.episodeId,
+                    stage: "transcribing",
+                    progress: 10,
+                });
+            }
 
             // 2. Fetch File (The Critical Fix)
             // We use the manual client to ask the backend for the URL, avoiding the broken ActionCtx RPC
@@ -94,11 +108,24 @@ export const run = action({
             console.log("STEP 3: Transcription Complete");
 
             // 4. Update State to Enriching
-            await mutationClient.mutation(api.episodes.updateProcessingStage, {
-                episodeId: args.episodeId,
-                stage: "enriching",
-                progress: 50,
-            });
+            if (args.versionId) {
+                await mutationClient.mutation(api.versions.updateProcessingStage, {
+                    versionId: args.versionId,
+                    stage: "enriching",
+                });
+                // [FIX] Sync Episode UI
+                await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                    episodeId: args.episodeId,
+                    stage: "enriching",
+                    progress: 50,
+                });
+            } else {
+                await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                    episodeId: args.episodeId,
+                    stage: "enriching",
+                    progress: 50,
+                });
+            }
 
             // 5. Parse Results
             const text = (transcriptResponse as any).text || "";
@@ -120,68 +147,140 @@ export const run = action({
 
             // 6. Save Base Results - Split into two calls to prevent timeouts
             console.log("STEP 3.1: Saving Heavy Transcript JSON");
-            await mutationClient.mutation(api.episodes.saveTranscript, {
-                episodeId: args.episodeId,
-                transcriptJson: transcriptResponse,
-            });
 
-            console.log("STEP 3.2: Updating Episode Metadata");
-            await mutationClient.mutation(api.episodes.updateEpisodeAIResults, {
-                episodeId: args.episodeId,
-                transcript: text,
-                segments: segments,
-                speakers: Array.from(speakers),
-            });
+            if (args.versionId) {
+                await mutationClient.mutation(api.versions.saveTranscript, {
+                    versionId: args.versionId,
+                    transcriptJson: transcriptResponse,
+                });
+
+                console.log("STEP 3.2: Updating Episode Metadata");
+                await mutationClient.mutation(api.versions.updateAIResults, {
+                    versionId: args.versionId,
+                    transcript: text,
+                    segments: segments,
+                    speakers: Array.from(speakers),
+                });
+            } else {
+                await mutationClient.mutation(api.episodes.saveTranscript, {
+                    episodeId: args.episodeId,
+                    transcriptJson: transcriptResponse,
+                });
+
+                console.log("STEP 3.2: Updating Episode Metadata");
+                await mutationClient.mutation(api.episodes.updateEpisodeAIResults, {
+                    episodeId: args.episodeId,
+                    transcript: text,
+                    segments: segments,
+                    speakers: Array.from(speakers),
+                });
+            }
 
             // 7. Enriched Show Notes
             console.log("STEP 4: Generating Show Notes");
             try {
-                await mutationClient.mutation(api.episodes.updateProcessingStage, {
-                    episodeId: args.episodeId,
-                    stage: "enriching",
-                    progress: 75,
-                });
+                if (args.versionId) {
+                    await mutationClient.mutation(api.versions.updateProcessingStage, {
+                        versionId: args.versionId,
+                        stage: "enriching", // Still enriching
+                    });
+                    // [FIX] Sync Episode UI
+                    await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                        episodeId: args.episodeId,
+                        stage: "enriching",
+                        progress: 75,
+                    });
+                } else {
+                    await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                        episodeId: args.episodeId,
+                        stage: "enriching",
+                        progress: 75,
+                    });
+                }
 
                 const enrichmentData = await generateShowNotes(segments);
 
-                await mutationClient.mutation(api.episodes.updateEnrichment, {
-                    episodeId: args.episodeId,
-                    generatedTitle: enrichmentData.title,
-                    summary: enrichmentData.summary,
-                    aiSynopsis: enrichmentData.aiSynopsis,
-                    guestBio: enrichmentData.guestBio,
-                    keyTakeaways: enrichmentData.keyTakeaways,
-                    seoTags: enrichmentData.seoTags,
-                    chapters: enrichmentData.chapters,
-                    resources: enrichmentData.resources,
-                    enrichmentStatus: "completed",
-                });
+                if (args.versionId) {
+                    await mutationClient.mutation(api.versions.updateEnrichment, {
+                        versionId: args.versionId,
+                        generatedTitle: enrichmentData.title,
+                        summary: enrichmentData.summary,
+                        aiSynopsis: enrichmentData.aiSynopsis,
+                        guestBio: enrichmentData.guestBio,
+                        keyTakeaways: enrichmentData.keyTakeaways,
+                        seoTags: enrichmentData.seoTags,
+                        chapters: enrichmentData.chapters,
+                        resources: enrichmentData.resources,
+                        enrichmentStatus: "completed",
+                    });
+                } else {
+                    await mutationClient.mutation(api.episodes.updateEnrichment, {
+                        episodeId: args.episodeId,
+                        generatedTitle: enrichmentData.title,
+                        summary: enrichmentData.summary,
+                        aiSynopsis: enrichmentData.aiSynopsis,
+                        guestBio: enrichmentData.guestBio,
+                        keyTakeaways: enrichmentData.keyTakeaways,
+                        seoTags: enrichmentData.seoTags,
+                        chapters: enrichmentData.chapters,
+                        resources: enrichmentData.resources,
+                        enrichmentStatus: "completed",
+                    });
+                }
             } catch (err) {
                 console.error("Show Notes Generation Failed:", err);
-                await mutationClient.mutation(api.episodes.updateEnrichment, {
-                    episodeId: args.episodeId,
-                    enrichmentStatus: "failed",
-                });
+                if (args.versionId) {
+                    await mutationClient.mutation(api.versions.updateEnrichment, {
+                        versionId: args.versionId,
+                        enrichmentStatus: "failed",
+                    });
+                } else {
+                    await mutationClient.mutation(api.episodes.updateEnrichment, {
+                        episodeId: args.episodeId,
+                        enrichmentStatus: "failed",
+                    });
+                }
             }
 
             // 8. Complete
-            await mutationClient.mutation(api.episodes.updateProcessingStage, {
-                episodeId: args.episodeId,
-                stage: "completed",
-                status: "action_required", // Set to action_required so user reviews it
-                progress: 100,
-            });
+            if (args.versionId) {
+                await mutationClient.mutation(api.versions.updateProcessingStage, {
+                    versionId: args.versionId,
+                    stage: "completed",
+                });
+                // [FIX] Sync Episode UI - Unlock the Interface!
+                await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                    episodeId: args.episodeId,
+                    stage: "completed",
+                    status: "action_required",
+                    progress: 100,
+                });
+            } else {
+                await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                    episodeId: args.episodeId,
+                    stage: "completed",
+                    status: "action_required", // Set to action_required so user reviews it
+                    progress: 100,
+                });
+            }
 
         } catch (error) {
             console.error("Processing failed:", error);
             // Even if the manual client fails, try to log the error using it
             try {
-                await mutationClient.mutation(api.episodes.updateProcessingStage, {
-                    episodeId: args.episodeId,
-                    stage: "failed",
-                    status: "action_required", // Ensure UI shows the red badge
-                    errorMessage: (error as Error).message || "Unknown error occurred",
-                });
+                if (args.versionId) {
+                    await mutationClient.mutation(api.versions.updateProcessingStage, {
+                        versionId: args.versionId,
+                        stage: "failed",
+                    });
+                } else {
+                    await mutationClient.mutation(api.episodes.updateProcessingStage, {
+                        episodeId: args.episodeId,
+                        stage: "failed",
+                        status: "action_required", // Ensure UI shows the red badge
+                        errorMessage: (error as Error).message || "Unknown error occurred",
+                    });
+                }
             } catch (e) {
                 console.error("Failed to report error state:", e);
             }
