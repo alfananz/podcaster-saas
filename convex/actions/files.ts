@@ -27,7 +27,13 @@ export const generateS3UploadUrl = action({
         // 2. Generate Key
         const timestamp = Date.now();
         const rand = Math.random().toString(36).substring(7);
-        const folder = args.fileType === "json" ? "data" : `${args.fileType}s`;
+        const folderMap: Record<string, string> = {
+            video: "videos",
+            audio: "audios",
+            image: "images",
+            json: "data"
+        };
+        const folder = folderMap[args.fileType] || "others";
         const key = `${folder}/${timestamp}-${rand}`; // e.g. "videos/170000000-xyz123"
         // Note: Client will need to append extension if they want, or we trust Content-Type.
         // Actually, best practice is to include extension in key if possible, but for simplicity let's stick to unique IDs 
@@ -55,4 +61,25 @@ export const generateS3UploadUrl = action({
             key,
         };
     },
+});
+
+export const deleteS3Files = action({
+    args: {
+        keys: v.array(v.string())
+    },
+    handler: async (ctx, args) => {
+        if (args.keys.length === 0) return;
+
+        const { DeleteObjectsCommand } = await import("@aws-sdk/client-s3");
+
+        await s3Client.send(new DeleteObjectsCommand({
+            Bucket: process.env.AWS_BUCKET_NAME!,
+            Delete: {
+                Objects: args.keys.map(key => ({ Key: key })),
+                Quiet: true, // Only report errors
+            },
+        }));
+
+        console.log(`[S3] Deleted ${args.keys.length} files:`, args.keys);
+    }
 });

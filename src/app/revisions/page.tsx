@@ -96,10 +96,23 @@ export default function RevisionQueuePage() {
                             <div key={revision._id} className="glass rounded-xl p-4 flex flex-col md:flex-row gap-6 items-center transition-all hover:translate-x-1 hover:border-primary/30 group border border-white/5">
                                 <div className="relative shrink-0">
                                     <div
-                                        className="aspect-video w-[180px] bg-black/40 rounded-lg bg-cover bg-center overflow-hidden border border-white/5"
-                                        style={{ backgroundImage: `url("${revision.episode?.imageUrl || ''}")` }}
+                                        className="aspect-video w-[180px] bg-black/40 rounded-lg bg-black overflow-hidden border border-white/5 relative group/video"
                                     >
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                        {revision.episode?.videoUrl ? (
+                                            <video
+                                                src={`${revision.episode.videoUrl}#t=0.1`}
+                                                className="w-full h-full object-cover opacity-80 group-hover/video:opacity-100 transition-opacity"
+                                                preload="metadata"
+                                                muted
+                                                playsInline
+                                            />
+                                        ) : (
+                                            <div
+                                                className="w-full h-full bg-cover bg-center"
+                                                style={{ backgroundImage: `url("${revision.episode?.imageUrl || ''}")` }}
+                                            />
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
                                     </div>
                                     {/* Fresh Status Dot */}
                                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background-dark shadow-[0_0_8px_#ff33bb]"></div>
@@ -123,10 +136,7 @@ export default function RevisionQueuePage() {
                                     </p>
 
                                     <div className="flex gap-2">
-                                        <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 border border-primary/20">
-                                            <span className="material-symbols-outlined text-primary text-[14px]">confirmation_number</span>
-                                            <span className="text-primary text-[11px] font-bold tracking-wide">TICKET</span>
-                                        </div>
+  
                                     </div>
                                 </div>
 

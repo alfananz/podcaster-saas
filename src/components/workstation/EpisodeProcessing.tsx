@@ -124,7 +124,7 @@ export function EpisodeProcessing({ stage = 'queued', progress, title, isResumin
                                     {currentProgress}%
                                 </span>
                                 <span className="text-sm font-bold text-accent-pink uppercase tracking-[0.3em] animate-pulse pl-1">
-                                    System Boot
+                                    Starting up...
                                 </span>
                             </div>
                         </div>

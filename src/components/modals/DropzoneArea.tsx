@@ -5,9 +5,20 @@ import { useDropzone } from 'react-dropzone';
 interface DropzoneAreaProps {
     onFileSelect: (file: File) => void;
     selectedFile: File | null;
+    accept?: Record<string, string[]>;
+    subtitle?: string;
 }
 
-export function DropzoneArea({ onFileSelect, selectedFile }: DropzoneAreaProps) {
+export function DropzoneArea({
+    onFileSelect,
+    selectedFile,
+    accept = {
+        'video/mp4': ['.mp4'],
+        'video/quicktime': ['.mov'],
+        'video/x-msvideo': ['.avi']
+    },
+    subtitle = "MP4, MOV, AVI (Max 2GB)"
+}: DropzoneAreaProps) {
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
             onFileSelect(acceptedFiles[0]);
@@ -17,11 +28,7 @@ export function DropzoneArea({ onFileSelect, selectedFile }: DropzoneAreaProps) 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         maxFiles: 1,
         onDrop,
-        accept: {
-            'video/mp4': ['.mp4'],
-            'video/quicktime': ['.mov'],
-            'video/x-msvideo': ['.avi']
-        }
+        accept
     });
 
     return (
@@ -37,7 +44,9 @@ export function DropzoneArea({ onFileSelect, selectedFile }: DropzoneAreaProps) 
 
             <div className="size-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                 {selectedFile ? (
-                    <span className="material-symbols-outlined text-3xl text-primary">movie</span>
+                    <span className="material-symbols-outlined text-3xl text-primary">
+                        {Object.keys(accept).some(k => k.includes('audio')) ? 'audio_file' : 'movie'}
+                    </span>
                 ) : (
                     <span className="material-symbols-outlined text-3xl text-white/60">cloud_upload</span>
                 )}
@@ -53,7 +62,7 @@ export function DropzoneArea({ onFileSelect, selectedFile }: DropzoneAreaProps) 
             ) : (
                 <div className="space-y-1">
                     <p className="font-bold text-white">Click to upload or drag and drop</p>
-                    <p className="text-xs text-white/40">MP4, MOV, AVI (Max 2GB)</p>
+                    <p className="text-xs text-white/40">{subtitle}</p>
                 </div>
             )}
         </div>

@@ -1,13 +1,26 @@
+"use client";
 import { Sidebar } from './Sidebar';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
     return (
         <div className="min-h-screen text-white font-display bg-[#0a0612]">
-            <Sidebar />
+            <Sidebar
+                isCollapsed={isCollapsed}
+                toggleCollapse={() => setIsCollapsed(!isCollapsed)}
+            />
 
-            <main className="lg:ml-72 min-h-screen p-8 lg:p-12">
+            <motion.main
+                initial={{ marginLeft: 288 }}
+                animate={{ marginLeft: isCollapsed ? 80 : 288 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="min-h-screen p-8 lg:p-12 relative z-10"
+            >
                 {children}
-            </main>
+            </motion.main>
 
             {/* Mobile Nav Overlay */}
             <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 glass px-6 py-4 rounded-full flex items-center gap-8 z-50 shadow-2xl">

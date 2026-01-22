@@ -109,7 +109,8 @@ export const listOpen = query({
                 episode: episode ? {
                     _id: episode._id,
                     title: episode.title,
-                    imageUrl: episode.imageUrl
+                    imageUrl: episode.imageUrl,
+                    videoUrl: episode.videoUrl // [NEW] Return video URL for thumbnail generation
                 } : null
             };
         }));

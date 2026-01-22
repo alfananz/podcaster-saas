@@ -38,6 +38,7 @@ export const create = mutation({
         user: v.object({
             name: v.string(),
             avatar: v.string(),
+            role: v.optional(v.string()), // [NEW]
         }),
         parentId: v.optional(v.id("comments")),
         versionId: v.optional(v.id("versions")),
@@ -47,7 +48,10 @@ export const create = mutation({
             episodeId: args.episodeId,
             text: args.text,
             timestamp: args.timestamp,
-            user: args.user,
+            // Flatten user object to match schema
+            name: args.user.name,
+            avatar: args.user.avatar,
+            role: args.user.role,
             isResolved: false,
             parentId: args.parentId,
             versionId: args.versionId,

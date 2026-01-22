@@ -9,7 +9,7 @@ export function useFileUpload() {
     // [NEW] Use Action instead of Mutation
     const generateS3UploadUrl = useAction(api.actions.files.generateS3UploadUrl);
 
-    const uploadFile = async (file: File) => {
+    const uploadFile = async (file: File, type: "video" | "audio" = "video") => {
         setIsUploading(true);
         setProgress(0);
 
@@ -17,7 +17,7 @@ export function useFileUpload() {
             // 1. Get S3 Signed URL
             const { uploadUrl, publicUrl } = await generateS3UploadUrl({
                 contentType: file.type,
-                fileType: "video", // Default to video for this hook, could be parametrized
+                fileType: type,
             });
 
             // 2. Upload directly to S3

@@ -48,6 +48,7 @@ export const create = mutation({
         language: v.optional(v.union(v.literal("en"), v.literal("ar"))),
         waveformId: v.optional(v.id("_storage")), // [NEW] Pre-computed waveform
         videoUrl: v.optional(v.string()), // [NEW] S3 URL
+        audioUrl: v.optional(v.string()), // [NEW] Support for Audio
         waveformUrl: v.optional(v.string()), // [NEW] S3 URL
     },
     handler: async (ctx, args) => {
@@ -55,6 +56,7 @@ export const create = mutation({
             title: args.title,
             storageId: args.storageId,
             videoUrl: args.videoUrl, // [NEW]
+            audioUrl: args.audioUrl, // [NEW]
             episodeNumber: args.episodeNumber,
             description: args.description,
             date: new Date().toISOString(),
@@ -69,8 +71,8 @@ export const create = mutation({
             waveformUrl: args.waveformUrl, // [NEW]
         });
 
-        // Atomic Scheduling: If storageId OR videoUrl is present, start the pipeline immediately.
-        if (args.storageId || args.videoUrl) {
+        // Atomic Scheduling: If storageId OR videoUrl OR audioUrl is present
+        if (args.storageId || args.videoUrl || args.audioUrl) {
             // [NEW] v1.0 Logic: Create initial version entry
             const versionId = await ctx.db.insert("versions", {
                 episodeId,
@@ -78,6 +80,7 @@ export const create = mutation({
                 name: "v1.0 (Original)",
                 storageId: args.storageId,
                 videoUrl: args.videoUrl, // [NEW]
+                audioUrl: args.audioUrl, // [NEW]
                 authorId: (await ctx.auth.getUserIdentity())?.subject || "admin",
                 status: "active",
                 uploadTime: Date.now(),
@@ -93,7 +96,9 @@ export const create = mutation({
             await ctx.scheduler.runAfter(0, (internal as any).actions.process.run, {
                 episodeId,
                 storageId: args.storageId,
-                videoUrl: args.videoUrl, // [NEW]
+                videoUrl: args.videoUrl || args.audioUrl, // Pipeline might still use videoUrl generic arg, or we update pipeline? 
+                // Let's pass it as videoUrl if videoUrl is missing, OR we update pipeline.
+                // For now, let's keep pipeline signature checks simple. The pipeline likely reads from DB anyway.
                 versionId, // [NEW] Version Context
             });
         }
@@ -148,10 +153,73 @@ export const remove = mutation({
         const episode = await ctx.db.get(args.episodeId);
         if (!episode) return; // Already deleted or doesn't exist
 
-        if (episode.storageId) {
-            await ctx.storage.delete(episode.storageId);
+        // 1. Collect S3 Keys to Delete
+        const keysToDelete: string[] = [];
+        const extractKey = (url: string | undefined | null) => {
+            if (!url) return null;
+            try {
+                // Typical S3 URL: https://BUCKET.s3.REGION.amazonaws.com/KEY
+                // Or: https://s3.REGION.amazonaws.com/BUCKET/KEY
+                // Let's assume standard virtual-hosted style from our action:
+                // https://podcaster-saas-media.s3.eu-central-1.amazonaws.com/videos/1700...
+                const urlObj = new URL(url);
+                if (urlObj.hostname.includes("amazonaws.com")) {
+                    return urlObj.pathname.substring(1); // Remove leading slash
+                }
+            } catch (e) {
+                return null;
+            }
+            return null;
+        };
+
+        // Episode Keys
+        const epKey1 = extractKey(episode.videoUrl);
+        if (epKey1) keysToDelete.push(epKey1);
+        const epKey2 = extractKey(episode.waveformUrl);
+        if (epKey2) keysToDelete.push(epKey2);
+
+        // Version Keys
+        const versions = await ctx.db
+            .query("versions")
+            .withIndex("by_episode", (q) => q.eq("episodeId", args.episodeId))
+            .collect();
+
+        for (const v of versions) {
+            const vKey1 = extractKey(v.videoUrl);
+            if (vKey1) keysToDelete.push(vKey1);
+            const vKey2 = extractKey(v.waveformUrl);
+            if (vKey2) keysToDelete.push(vKey2);
         }
 
+        // 2. Schedule S3 Deletion (Async)
+        if (keysToDelete.length > 0) {
+            // Dedupe
+            const uniqueKeys = Array.from(new Set(keysToDelete));
+            await ctx.scheduler.runAfter(0, (internal as any).actions.files.deleteS3Files, {
+                keys: uniqueKeys
+            });
+        }
+
+        // 3. Delete Legacy Convex Storage Files
+        if (episode.storageId) {
+            try { await ctx.storage.delete(episode.storageId); } catch (e) { /** Ignore if missing */ }
+        }
+        if (episode.waveformId) {
+            try { await ctx.storage.delete(episode.waveformId); } catch (e) { /** Ignore */ }
+        }
+
+        for (const v of versions) {
+            if (v.storageId) try { await ctx.storage.delete(v.storageId); } catch (e) { }
+            if (v.waveformId) try { await ctx.storage.delete(v.waveformId); } catch (e) { }
+
+            // Delete the version record
+            await ctx.db.delete(v._id);
+        }
+
+        // 4. Delete Transcripts & other data (Optional but good hygiene)
+        // ... (Skipping strict cascade for now as per minimal request, but versions are critical)
+
+        // 5. Delete Episode
         await ctx.db.delete(args.episodeId);
     },
 });

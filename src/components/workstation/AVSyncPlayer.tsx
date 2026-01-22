@@ -16,13 +16,14 @@ interface AVSyncPlayerProps {
     comments?: any[]; // Keep any for now to avoid specific type dependency, or define stricter
     title?: string;
     onReady?: () => void;
+    isAudioOnly?: boolean; // [NEW]
 }
 
 export interface AVSyncPlayerRef {
     seekTo: (time: number) => void;
 }
 
-const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId, versionId, videoUrl, waveformUrl, onTimeUpdate, comments = [], title, onReady }, ref) => {
+const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId, versionId, videoUrl, waveformUrl, onTimeUpdate, comments = [], title, onReady, isAudioOnly = false }, ref) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [hasMounted, setHasMounted] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -229,14 +230,18 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
 
     return (
         <div className="flex flex-col gap-6 w-full group/player">
+            {/* VIDEO CONTAINER: Hidden if Audio Only */}
             <div
                 ref={videoContainerRef}
-                className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 group relative"
+                className={`
+                    relative w-full bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 group relative
+                    ${isAudioOnly ? 'hidden' : 'aspect-video'} 
+                `}
             >
                 <video
                     ref={setVideoElement}
                     src={videoUrl}
-                    className="w-full h-full object-contain bg-black"
+                    className={`w-full h-full object-contain bg-black ${isAudioOnly ? 'hidden' : 'block'}`}
                     playsInline
                     crossOrigin="anonymous"
                     onTimeUpdate={onTimeUpdateNative}
@@ -251,21 +256,23 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
                     }}
                 />
 
-                <div className="absolute bottom-6 left-0 right-0 z-30 transition-opacity duration-300 opacity-0 group-hover/player:opacity-100">
-                    <PlayerControls
-                        isPlaying={isPlaying}
-                        currentTime={videoElement?.currentTime || 0}
-                        duration={duration}
-                        volume={videoElement?.volume || 1}
-                        title={title}
-                        onTogglePlay={handleTogglePlay}
-                        onSeek={handleSeek}
-                        onVolumeChange={handleVolumeChange}
-                        onSkipForward={() => handleSkip(10)}
-                        onSkipBack={() => handleSkip(-10)}
-                        onFullscreen={handleFullscreen}
-                    />
-                </div>
+                {!isAudioOnly && (
+                    <div className="absolute bottom-6 left-0 right-0 z-30 transition-opacity duration-300 opacity-0 group-hover/player:opacity-100">
+                        <PlayerControls
+                            isPlaying={isPlaying}
+                            currentTime={videoElement?.currentTime || 0}
+                            duration={duration}
+                            volume={videoElement?.volume || 1}
+                            title={title}
+                            onTogglePlay={handleTogglePlay}
+                            onSeek={handleSeek}
+                            onVolumeChange={handleVolumeChange}
+                            onSkipForward={() => handleSkip(10)}
+                            onSkipBack={() => handleSkip(-10)}
+                            onFullscreen={handleFullscreen}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Waveform */}
@@ -279,15 +286,38 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mb-6">
-                    <div className={`size-2 rounded-full ${isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'}`} />
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Master Audio Track</h3>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        {/* [NEW] Play Button in Header for Audio Mode */}
+                        {isAudioOnly && (
+                            <button
+                                onClick={handleTogglePlay}
+                                className="size-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all active:scale-95"
+                            >
+                                <span className="material-symbols-outlined text-white">{isPlaying ? 'pause' : 'play_arrow'}</span>
+                            </button>
+                        )}
+                        <div className={`size-2 rounded-full ${isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'}`} />
+                        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Master Audio Track</h3>
+                    </div>
+                    {/* [NEW] Time Display for Audio Mode */}
+                    {isAudioOnly && (
+                        <div className="text-xs font-mono text-white/40 tracking-wider">
+                            {new Date((videoElement?.currentTime || 0) * 1000).toISOString().substr(14, 5)} / {new Date(duration * 1000).toISOString().substr(14, 5)}
+                        </div>
+                    )}
                 </div>
 
                 <div ref={setContainer} className="w-full h-[120px] relative">
                     {hasMounted && duration > 0 && comments.map((comment) => {
                         const leftPercent = (comment.timestamp / duration) * 100;
                         if (leftPercent < 0 || leftPercent > 100) return null;
+
+                        // [NEW] Role-based Styling
+                        const role = comment.user.role || 'admin';
+                        const isClient = role === 'client';
+                        const color = isClient ? '#33bbff' : '#ff3399';
+                        const shadow = isClient ? 'shadow-[0_0_15px_rgba(51,187,255,1)]' : 'shadow-[0_0_15px_rgba(255,51,153,1)]';
 
                         return (
                             <div
@@ -296,17 +326,29 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
                                 style={{ left: `${leftPercent}%` }}
                             >
                                 <div className="relative h-full -ml-[1px]">
-                                    <div className="absolute inset-y-0 w-0.5 bg-[#ff3399] shadow-[0_0_15px_rgba(255,51,153,1)]"></div>
-                                    <div className="absolute -top-1 -left-[3px] size-2 bg-[#ff3399] rounded-full"></div>
+                                    <div
+                                        className={`absolute inset-y-0 w-0.5 ${shadow}`}
+                                        style={{ backgroundColor: color }}
+                                    ></div>
+                                    <div
+                                        className="absolute -top-1 -left-[3px] size-2 rounded-full"
+                                        style={{ backgroundColor: color }}
+                                    ></div>
                                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                                        <div className="size-8 rounded-full border-2 border-[#ff3399] overflow-hidden shadow-lg shadow-[#ff3399]/30 relative z-10 bg-black">
+                                        <div
+                                            className="size-8 rounded-full border-2 overflow-hidden shadow-lg relative z-10 bg-black"
+                                            style={{ borderColor: color, boxShadow: `0 4px 12px ${color}50` }} // 50 = approx 30% alpha
+                                        >
                                             <img
                                                 alt={comment.user.name}
                                                 src={comment.user.avatar}
                                                 className="w-full h-full object-cover"
                                             />
                                         </div>
-                                        <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-[#ff3399] -mt-1"></div>
+                                        <div
+                                            className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] -mt-1"
+                                            style={{ borderTopColor: color }}
+                                        ></div>
                                     </div>
                                 </div>
                             </div>

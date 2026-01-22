@@ -12,9 +12,11 @@ interface CommentCardProps {
     onDelete: (commentId: Id<"comments">) => void;
     onResolve: (commentId: Id<"comments">) => void;
     isThreadView?: boolean;
+    isRevisionMode?: boolean;
+    isHighlighted?: boolean; // [NEW]
 }
 
-export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onResolve, isThreadView = false }: CommentCardProps) {
+export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onResolve, isThreadView = false, isRevisionMode = false, isHighlighted = false }: CommentCardProps) {
     const { isAdmin } = useUserRole();
     const toggleLike = useMutation(api.comments.toggleLike);
     const [isEditing, setIsEditing] = useState(false);
@@ -43,20 +45,36 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
 
     // Styling: "Bubble" Design
     const isMe = comment.user.name === "Me";
+    const role = comment.user.role || (isAdmin ? 'admin' : 'client'); // Fallback for legacy
+    const isClient = role === 'client';
+    const accentColor = isClient ? 'text-[#33bbff]' : 'text-[#ff3399]';
+    const borderColor = isClient ? 'border-[#33bbff]/50' : 'border-[#ff3399]/50';
+    const glowColor = isClient ? 'shadow-[0_0_30px_rgba(51,187,255,0.2)]' : 'shadow-[0_0_30px_rgba(255,51,153,0.2)]';
+    const bgTint = isClient ? 'bg-[#33bbff]/10' : 'bg-[#ff3399]/10';
 
     // Styling: "Technical Audit" Design - Larger & Interactive
     return (
         <div
             onClick={() => onSeek(comment.timestamp)}
-            className={`p-5 bg-white/5 rounded-2xl border border-white/5 group hover:border-white/10 hover:bg-white/10 transition-all w-full animate-in fade-in slide-in-from-bottom-2 duration-500 cursor-pointer ${comment.isResolved ? 'opacity-50 hover:opacity-100' : 'opacity-100'}`}
+            className={`p-5 rounded-2xl border transition-all w-full cursor-pointer duration-500
+                ${isHighlighted
+                    ? `${bgTint} ${borderColor} ${glowColor}`
+                    : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/10'}
+                ${comment.isResolved ? 'opacity-50 hover:opacity-100' : 'opacity-100'}
+            `}
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-xl bg-cover border border-white/10 shadow-sm" style={{
+                    <div className={`size-8 rounded-xl bg-cover border shadow-sm ${isClient ? 'border-[#33bbff]/30 shadow-[#33bbff]/20' : 'border-[#ff3399]/30 shadow-[#ff3399]/20'}`} style={{
                         backgroundImage: `url(${comment.user.avatar || `https://ui-avatars.com/api/?name=${comment.user.name}&background=random`})`
                     }}></div>
-                    <span className="text-xs font-bold text-white tracking-wide">{comment.user.name}</span>
+                    <div>
+                        <span className="text-xs font-bold text-white tracking-wide block">{comment.user.name}</span>
+                        <span className={`text-[9px] uppercase tracking-wider font-bold ${accentColor} opacity-80`}>
+                            {isClient ? 'Client' : 'Engineer'}
+                        </span>
+                    </div>
                     {comment.isResolved && (
                         <span className="text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
                             Resolved
@@ -96,7 +114,7 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
 
             {/* Actions Footer */}
             {!isEditing && (
-                <div className="mt-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity items-center border-t border-white/5 pt-3">
+                <div className={`mt-4 flex gap-3 items-center border-t border-white/5 pt-3 transition-opacity ${isRevisionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     {/* Like Button */}
                     <button
                         onClick={(e) => { e.stopPropagation(); toggleLike({ commentId: comment._id }); }}
@@ -106,7 +124,10 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
                         {comment.likes > 0 ? comment.likes : 'LIKE'}
                     </button>
 
-                    {!isMe && (
+
+
+                    {/* Hide Reply if in Revision Mode (unless Admin) */}
+                    {(!isRevisionMode || isAdmin) && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onReply(comment._id); }}
                             className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors"
@@ -117,7 +138,9 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
 
                     {isMe && (
                         <>
-                            <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors">EDIT</button>
+                            {(!isRevisionMode || isAdmin) && (
+                                <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors">EDIT</button>
+                            )}
 
                             {/* [MODIFIED] Only Admins can resolve */}
                             {isAdmin && (
@@ -129,7 +152,9 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
                                 </button>
                             )}
 
-                            <button onClick={(e) => { e.stopPropagation(); onDelete(comment._id); }} className="text-[10px] font-bold text-white/30 hover:text-red-400 uppercase tracking-widest hover:bg-red-500/10 py-1 px-2 rounded-lg transition-colors">DELETE</button>
+                            {(!isRevisionMode || isAdmin) && (
+                                <button onClick={(e) => { e.stopPropagation(); onDelete(comment._id); }} className="text-[10px] font-bold text-white/30 hover:text-red-400 uppercase tracking-widest hover:bg-red-500/10 py-1 px-2 rounded-lg transition-colors">DELETE</button>
+                            )}
                         </>
                     )}
                 </div>

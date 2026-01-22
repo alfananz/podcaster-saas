@@ -228,14 +228,18 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                         </div>
                                     </div>
 
-                                    {videoUrl && (
+                                    {(videoUrl || (effectiveData as any)?.audioUrl) && (
                                         <AVSyncPlayer
                                             ref={playerRef}
-                                            key={videoUrl}
-                                            episodeId={episode._id} // [NEW] For saving waveform
-                                            versionId={selectedVersionId} // [NEW] Version Context
-                                            videoUrl={videoUrl}
-                                            waveformUrl={(effectiveData as any).waveformUrl} // [NEW] Version Specific
+                                            key={videoUrl || (effectiveData as any)?.audioUrl}
+                                            episodeId={episode._id}
+                                            versionId={selectedVersionId}
+                                            // [MODIFIED] Pass audioUrl as videoUrl if videoUrl is missing logic is inside player? 
+                                            // No, we pass the generic media url to "videoUrl" prop, but let's rename or verify.
+                                            // The prop is videoUrl, but it accepts audio files for <video> tag.
+                                            videoUrl={videoUrl || (effectiveData as any)?.audioUrl}
+                                            waveformUrl={(effectiveData as any).waveformUrl}
+                                            isAudioOnly={!!(effectiveData as any)?.audioUrl && !videoUrl} // [NEW] Detect Audio Mode
                                             onTimeUpdate={setCurrentTime}
                                             comments={comments || []}
                                             title={episode.title}

@@ -70,6 +70,7 @@ export default defineSchema({
         name: v.string(), // "v1.0", "Revision 1", etc.
         storageId: v.optional(v.id("_storage")),
         videoUrl: v.optional(v.string()),
+        audioUrl: v.optional(v.string()), // [NEW] Support for Audio Versions
         authorId: v.optional(v.string()),
         status: v.union(v.literal("processing"), v.literal("active"), v.literal("archived")),
         changeLog: v.optional(v.string()), // "Fixed audio sync issues"
@@ -150,10 +151,9 @@ export default defineSchema({
         versionId: v.optional(v.id("versions")), // Link to specific version
         text: v.string(),
         timestamp: v.number(), // in seconds
-        user: v.object({
-            name: v.string(),
-            avatar: v.string(),
-        }),
+        name: v.string(),
+        avatar: v.string(),
+        role: v.optional(v.string()), // [NEW] "admin" or "client"
         isResolved: v.boolean(),
         parentId: v.optional(v.id("comments")), // For threading
         likes: v.number(),
@@ -165,10 +165,12 @@ export default defineSchema({
         .index("by_batch", ["revisionBatchId"])
         .index("by_version", ["versionId"])
         .index("by_episode_version", ["episodeId", "versionId"]),
+
     transcripts: defineTable({
         episodeId: v.id("episodes"),
         transcriptJson: v.any(),
     }).index("by_episode", ["episodeId"]),
+
     users: defineTable({
         name: v.string(),
         username: v.string(),
