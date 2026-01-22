@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { useUserRole } from '../../hooks/useUserRole';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
@@ -14,7 +14,7 @@ interface VersionControllerProps {
 export function VersionController({ episodeId, currentVersionId, selectedVersionId, onVersionSelect }: VersionControllerProps) {
     const { isAdmin } = useUserRole();
     const versions = useQuery(api.versions.list, { episodeId });
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const generateS3UploadUrl = useAction(api.actions.files.generateS3UploadUrl);
     const createVersion = useMutation(api.versions.create);
 
     const [isOpen, setIsOpen] = useState(false);
@@ -58,20 +58,24 @@ export function VersionController({ episodeId, currentVersionId, selectedVersion
         setIsOpen(false); // Close menu
         try {
             // 1. Get URL
-            const postUrl = await generateUploadUrl();
+            const { uploadUrl, publicUrl } = await generateS3UploadUrl({
+                contentType: file.type,
+                fileType: "video",
+            });
 
             // 2. Upload
-            const result = await fetch(postUrl, {
-                method: "POST",
+            const result = await fetch(uploadUrl, {
+                method: "PUT",
                 headers: { "Content-Type": file.type },
                 body: file,
             });
-            const { storageId } = await result.json();
+
+            if (!result.ok) throw new Error("Upload failed");
 
             // 3. Create Version
             const newVersionId = await createVersion({
                 episodeId,
-                storageId,
+                videoUrl: publicUrl, // [NEW] S3 URL
                 changeLog: `Uploaded via Version Controller`,
             });
 

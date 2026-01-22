@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DropzoneArea } from './DropzoneArea';
 import { AuroraProgressBar } from '@/components/ui/AuroraProgressBar';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { useMutation } from 'convex/react';
+import { useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import WaveSurfer from 'wavesurfer.js';
 
@@ -25,7 +25,7 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const { uploadFile, isUploading, progress } = useFileUpload();
     const createEpisode = useMutation(api.episodes.create);
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const generateS3UploadUrl = useAction(api.actions.files.generateS3UploadUrl);
 
     const handleSubmit = async () => {
         if (!title || !selectedFile) return;
@@ -58,17 +58,21 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
                 });
 
                 const blob = new Blob([JSON.stringify({ data: peaks })], { type: 'application/json' });
-                const postUrl = await generateUploadUrl();
 
-                const result = await fetch(postUrl, {
-                    method: "POST",
+                // [NEW] S3 Upload for Waveform
+                const { uploadUrl, publicUrl } = await generateS3UploadUrl({
+                    contentType: "application/json",
+                    fileType: "json"
+                });
+
+                await fetch(uploadUrl, {
+                    method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: blob,
                 });
 
-                const { storageId } = await result.json();
-                console.log("[Client] Waveform uploaded:", storageId);
-                return storageId;
+                console.log("[Client] Waveform uploaded to S3:", publicUrl);
+                return publicUrl;
             })();
 
             // 3. Wait for BOTH
@@ -76,16 +80,16 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
             // The user requested "ensure everything processes". So let's stick to Promise.all
             // But to be safe, we catch waveform errors specifically.
 
-            let storageId;
-            let waveformId;
+            let videoUrl;
+            let waveformUrl;
 
             try {
                 const results = await Promise.all([videoUploadPromise, waveformPromise]);
-                storageId = results[0];
-                waveformId = results[1];
+                videoUrl = results[0];
+                waveformUrl = results[1];
             } catch (err) {
                 console.warn("Waveform generation failed, proceeding with just video:", err);
-                storageId = await videoUploadPromise; // Ensure video at least finishes
+                videoUrl = await videoUploadPromise; // Ensure video at least finishes
                 // waveformId remains undefined
             }
 
@@ -94,9 +98,9 @@ export function NewEpisodeModal({ isOpen, onClose }: NewEpisodeModalProps) {
                 title,
                 episodeNumber,
                 description,
-                storageId: storageId as any,
+                videoUrl: videoUrl, // [NEW] S3 URL
                 language,
-                waveformId: waveformId as any, // Pass the ID directly
+                waveformUrl: waveformUrl, // [NEW] S3 URL
             });
 
             // 5. Complete & Close

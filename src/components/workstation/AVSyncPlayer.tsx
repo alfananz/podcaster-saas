@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import WaveSurfer from "wavesurfer.js";
 import { PlayerControls } from "./PlayerControls";
-import { useMutation } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
@@ -36,7 +36,7 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
     const waveSurferRef = useRef<WaveSurfer | null>(null);
 
     // Convex Mutations
-    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const generateS3UploadUrl = useAction(api.actions.files.generateS3UploadUrl);
     const saveWaveform = useMutation(api.episodes.saveWaveform);
     const saveWaveformVersion = useMutation(api.versions.saveWaveform);
 
@@ -121,19 +121,22 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
 
                     if (peaks && (peaks.length > 0 || (peaks[0] && peaks[0].length > 0))) {
                         try {
-                            const postUrl = await generateUploadUrl();
-                            const result = await fetch(postUrl, {
-                                method: "POST",
+                            const { uploadUrl, publicUrl } = await generateS3UploadUrl({
+                                contentType: "application/json",
+                                fileType: "json",
+                            });
+
+                            const result = await fetch(uploadUrl, {
+                                method: "PUT",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(peaks),
+                                body: JSON.stringify({ data: peaks }),
                             });
 
                             if (result.ok) {
-                                const { storageId } = await result.json();
                                 if (versionId) {
-                                    await saveWaveformVersion({ versionId, storageId });
+                                    await saveWaveformVersion({ versionId, waveformUrl: publicUrl });
                                 } else if (episodeId) {
-                                    await saveWaveform({ episodeId, storageId });
+                                    await saveWaveform({ episodeId, waveformUrl: publicUrl });
                                 }
                             }
                         } catch (err) {

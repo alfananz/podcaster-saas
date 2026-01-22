@@ -5,7 +5,8 @@ import { internal } from "./_generated/api";
 export const create = mutation({
     args: {
         episodeId: v.id("episodes"),
-        storageId: v.id("_storage"),
+        storageId: v.optional(v.id("_storage")),
+        videoUrl: v.optional(v.string()), // [NEW] S3 URL
         changeLog: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
@@ -27,6 +28,7 @@ export const create = mutation({
             versionNumber,
             name,
             storageId: args.storageId,
+            videoUrl: args.videoUrl, // [NEW]
             authorId,
             status: "active",
             changeLog: args.changeLog,
@@ -45,6 +47,7 @@ export const create = mutation({
         await ctx.scheduler.runAfter(0, (internal as any).actions.process.run, {
             episodeId: args.episodeId,
             storageId: args.storageId,
+            videoUrl: args.videoUrl, // [NEW]
             versionId, // [NEW] Link processing to this version
         });
 
@@ -61,15 +64,23 @@ export const list = query({
             .order("desc") // Latest first
             .collect();
 
-        // Enrich with waveformUrl
+        // Enrich with waveformUrl and videoUrl (if S3)
         const enriched = await Promise.all(versions.map(async (v) => {
-            let waveformUrl = null;
-            if (v.waveformId) {
-                waveformUrl = await ctx.storage.getUrl(v.waveformId);
+            let waveformUrl = v.waveformUrl;
+            if (!waveformUrl && v.waveformId) {
+                waveformUrl = await ctx.storage.getUrl(v.waveformId) || undefined;
             }
+
+            // Ensure videoUrl is resolved if legacy
+            let videoUrl = v.videoUrl;
+            if (!videoUrl && v.storageId) {
+                videoUrl = await ctx.storage.getUrl(v.storageId) || undefined;
+            }
+
             return {
                 ...v,
                 waveformUrl,
+                videoUrl,
             };
         }));
 
@@ -174,11 +185,13 @@ export const updateEnrichment = mutation({
 export const saveWaveform = mutation({
     args: {
         versionId: v.id("versions"),
-        storageId: v.id("_storage"),
+        storageId: v.optional(v.id("_storage")),
+        waveformUrl: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         await ctx.db.patch(args.versionId, {
             waveformId: args.storageId,
+            waveformUrl: args.waveformUrl,
         });
     },
 });

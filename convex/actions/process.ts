@@ -17,7 +17,8 @@ import { generateShowNotes } from "./enrich";
 export const run = action({
     args: {
         episodeId: v.id("episodes"),
-        storageId: v.id("_storage"),
+        storageId: v.optional(v.id("_storage")),
+        videoUrl: v.optional(v.string()), // [NEW] S3 URL Support
         versionId: v.optional(v.id("versions")), // [NEW] Optional Version Context
     },
     handler: async (ctx, args) => {
@@ -84,16 +85,27 @@ export const run = action({
             }
 
             // 2. Fetch File (The Critical Fix)
-            // We use the manual client to ask the backend for the URL, avoiding the broken ActionCtx RPC
-            const publicUrl = await mutationClient.query(api.episodes.getStorageUrl, { storageId: args.storageId });
-            if (!publicUrl) throw new Error("File URL not found in storage");
+            let fetchUrl: string;
 
-            let fetchUrl = publicUrl;
-            if (publicUrl.includes("api.mellostudio.com")) {
-                fetchUrl = publicUrl.replace("https://api.mellostudio.com", "http://127.0.0.1:3210");
-                console.log(`[Self-Hosted Fix] Rewrote URL for Docker Fetch: ${fetchUrl}`);
+            if (args.videoUrl) {
+                // [NEW] S3 Path - Direct Fetch
+                console.log(`[Process] Using S3 URL: ${args.videoUrl}`);
+                fetchUrl = args.videoUrl;
+            } else if (args.storageId) {
+                // [LEGACY] Convex Storage Path
+                // We use the manual client to ask the backend for the URL, avoiding the broken ActionCtx RPC
+                const publicUrl = await mutationClient.query(api.episodes.getStorageUrl, { storageId: args.storageId });
+                if (!publicUrl) throw new Error("File URL not found in storage");
+
+                fetchUrl = publicUrl;
+                if (publicUrl.includes("api.mellostudio.com")) {
+                    fetchUrl = publicUrl.replace("https://api.mellostudio.com", "http://127.0.0.1:3210");
+                    console.log(`[Self-Hosted Fix] Rewrote URL for Docker Fetch: ${fetchUrl}`);
+                } else {
+                    console.log(`[Cloud/Local] Using original URL: ${fetchUrl}`);
+                }
             } else {
-                console.log(`[Cloud/Local] Using original URL: ${fetchUrl}`);
+                throw new Error("No videoUrl or storageId provided for processing");
             }
 
             const fileResponse = await fetch(fetchUrl);

@@ -16,7 +16,6 @@ export const list = query({
                 const version = await ctx.db.get(ep.currentVersionId);
                 // Note: version.videoUrl might be a storage ID or a full URL. 
                 // Assuming version logic stores a usable URL or we need to generate one from storageId.
-                // If version has storageId and no videoUrl, we try to get url.
                 if (version?.videoUrl) {
                     videoUrl = version.videoUrl;
                 } else if (version?.storageId) {
@@ -27,7 +26,13 @@ export const list = query({
                 videoUrl = await ctx.storage.getUrl(ep.storageId) || undefined;
             }
 
-            return { ...ep, videoUrl };
+            // [NEW] Resolve Waveform URL (S3 vs Storage)
+            let waveformUrl = ep.waveformUrl;
+            if (!waveformUrl && ep.waveformId) {
+                waveformUrl = await ctx.storage.getUrl(ep.waveformId) || undefined;
+            }
+
+            return { ...ep, videoUrl, waveformUrl };
         }));
 
         return enriched;
@@ -42,11 +47,14 @@ export const create = mutation({
         description: v.optional(v.string()),
         language: v.optional(v.union(v.literal("en"), v.literal("ar"))),
         waveformId: v.optional(v.id("_storage")), // [NEW] Pre-computed waveform
+        videoUrl: v.optional(v.string()), // [NEW] S3 URL
+        waveformUrl: v.optional(v.string()), // [NEW] S3 URL
     },
     handler: async (ctx, args) => {
         const episodeId = await ctx.db.insert("episodes", {
             title: args.title,
             storageId: args.storageId,
+            videoUrl: args.videoUrl, // [NEW]
             episodeNumber: args.episodeNumber,
             description: args.description,
             date: new Date().toISOString(),
@@ -58,16 +66,18 @@ export const create = mutation({
             issues: undefined,
             language: args.language || "en", // Default to English
             waveformId: args.waveformId, // [NEW] Store it
+            waveformUrl: args.waveformUrl, // [NEW]
         });
 
-        // Atomic Scheduling: If storageId is present, start the pipeline immediately.
-        if (args.storageId) {
+        // Atomic Scheduling: If storageId OR videoUrl is present, start the pipeline immediately.
+        if (args.storageId || args.videoUrl) {
             // [NEW] v1.0 Logic: Create initial version entry
             const versionId = await ctx.db.insert("versions", {
                 episodeId,
                 versionNumber: 1,
                 name: "v1.0 (Original)",
                 storageId: args.storageId,
+                videoUrl: args.videoUrl, // [NEW]
                 authorId: (await ctx.auth.getUserIdentity())?.subject || "admin",
                 status: "active",
                 uploadTime: Date.now(),
@@ -83,6 +93,7 @@ export const create = mutation({
             await ctx.scheduler.runAfter(0, (internal as any).actions.process.run, {
                 episodeId,
                 storageId: args.storageId,
+                videoUrl: args.videoUrl, // [NEW]
                 versionId, // [NEW] Version Context
             });
         }
@@ -97,11 +108,13 @@ import { Id } from "./_generated/dataModel";
 export const saveWaveform = mutation({
     args: {
         episodeId: v.id("episodes"),
-        storageId: v.id("_storage"),
+        storageId: v.optional(v.id("_storage")),
+        waveformUrl: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         await ctx.db.patch(args.episodeId, {
             waveformId: args.storageId,
+            waveformUrl: args.waveformUrl,
         });
     },
 });
@@ -117,9 +130,9 @@ export const get = query({
         if (!episode) return null;
 
         // Get Waveform URL if it exists
-        let waveformUrl = null;
-        if (episode.waveformId) {
-            waveformUrl = await ctx.storage.getUrl(episode.waveformId);
+        let waveformUrl = episode.waveformUrl;
+        if (!waveformUrl && episode.waveformId) {
+            waveformUrl = await ctx.storage.getUrl(episode.waveformId) || undefined;
         }
 
         return {

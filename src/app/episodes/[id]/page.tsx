@@ -57,9 +57,12 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
     const effectiveStorageId = activeVersion?.storageId || episode?.storageId;
 
     // 4. Fetch URL (Only run if we have a storageId)
-    const videoUrl = useQuery(api.files.getUrl,
+    const storageVideoUrl = useQuery(api.files.getUrl,
         effectiveStorageId ? { storageId: effectiveStorageId } : "skip"
     );
+
+    // [NEW] Resolve Final Video URL (S3 vs Legacy Storage)
+    const videoUrl = (effectiveData as any)?.videoUrl || storageVideoUrl;
 
     const comments = useQuery(api.comments.list,
         episode ? { episodeId: episode._id, versionId: selectedVersionId } : "skip"

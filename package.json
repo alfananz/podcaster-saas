@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.972.0",
+    "@aws-sdk/s3-request-presigner": "^3.972.0",
     "@elevenlabs/elevenlabs-js": "^2.31.0",
     "@wavesurfer/react": "^1.0.12",
     "clsx": "^2.1.1",

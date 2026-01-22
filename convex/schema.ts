@@ -61,13 +61,14 @@ export default defineSchema({
         )),
         language: v.optional(v.union(v.literal("en"), v.literal("ar"))), // [NEW] Language Preference
         waveformId: v.optional(v.id("_storage")), // [NEW] Persistent Waveform Storage ID
+        waveformUrl: v.optional(v.string()), // [NEW] S3 URL for waveform
     }),
 
     versions: defineTable({
         episodeId: v.id("episodes"),
         versionNumber: v.number(),
         name: v.string(), // "v1.0", "Revision 1", etc.
-        storageId: v.id("_storage"),
+        storageId: v.optional(v.id("_storage")),
         videoUrl: v.optional(v.string()),
         authorId: v.optional(v.string()),
         status: v.union(v.literal("processing"), v.literal("active"), v.literal("archived")),
@@ -83,6 +84,7 @@ export default defineSchema({
             v.literal("failed")
         )),
         waveformId: v.optional(v.id("_storage")),
+        waveformUrl: v.optional(v.string()), // [NEW] S3 URL for waveform
 
         // [NEW] Per-Version AI Data
         transcript: v.optional(v.string()),

@@ -11,6 +11,7 @@
 import type * as actions_debugNetwork from "../actions/debugNetwork.js";
 import type * as actions_diagnose from "../actions/diagnose.js";
 import type * as actions_enrich from "../actions/enrich.js";
+import type * as actions_files from "../actions/files.js";
 import type * as actions_process from "../actions/process.js";
 import type * as actions_transcribe from "../actions/transcribe.js";
 import type * as assets from "../assets.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "actions/debugNetwork": typeof actions_debugNetwork;
   "actions/diagnose": typeof actions_diagnose;
   "actions/enrich": typeof actions_enrich;
+  "actions/files": typeof actions_files;
   "actions/process": typeof actions_process;
   "actions/transcribe": typeof actions_transcribe;
   assets: typeof assets;
