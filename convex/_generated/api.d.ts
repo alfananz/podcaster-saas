@@ -14,6 +14,7 @@ import type * as actions_enrich from "../actions/enrich.js";
 import type * as actions_process from "../actions/process.js";
 import type * as actions_transcribe from "../actions/transcribe.js";
 import type * as assets from "../assets.js";
+import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
 import type * as debug from "../debug.js";
 import type * as episodes from "../episodes.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   "actions/process": typeof actions_process;
   "actions/transcribe": typeof actions_transcribe;
   assets: typeof assets;
+  auth: typeof auth;
   comments: typeof comments;
   debug: typeof debug;
   episodes: typeof episodes;

@@ -19,10 +19,11 @@ interface EditorHeaderProps {
     processingStage?: 'queued' | 'transcribing' | 'enriching' | 'completed' | 'failed' | 'revision_requested';
     hasOpenRevision?: boolean;
     hasComments?: boolean; // [NEW]
+    isLatestVersion?: boolean; // [NEW] Check if viewing Head version
     onRequestChanges: () => void;
 }
 
-export function EditorHeader({ episodeId, title, season = "Season 1", episodeNumber = "Episode 1", status, processingStage, hasOpenRevision, hasComments = false, onRequestChanges }: EditorHeaderProps) {
+export function EditorHeader({ episodeId, title, season = "Season 1", episodeNumber = "Episode 1", status, processingStage, hasOpenRevision, hasComments = false, isLatestVersion = true, onRequestChanges }: EditorHeaderProps) {
     const router = useRouter();
     const removeEpisode = useMutation(api.episodes.remove);
     const approveEpisode = useMutation(api.episodes.approve);
@@ -49,7 +50,7 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
     const isError = status === 'action_required' && processingStage === 'failed';
     const isApproved = status === 'completed';
 
-    const isRequestChangesDisabled = hasOpenRevision || !hasComments || isApproved;
+    const isRequestChangesDisabled = hasOpenRevision || !hasComments || isApproved || !isLatestVersion;
 
     return (
         <header className="h-20 border-b border-white/5 flex items-center bg-black/20 backdrop-blur-md sticky top-0 z-10 w-full">
@@ -83,9 +84,15 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
             <div className="w-1/3 min-w-[400px] border-l border-white/5 flex items-center justify-between px-4 mt-4 gap-2">
                 {/* Delete Button */}
                 <button
-                    onClick={handleDeleteClick}
-                    className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-transparent hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all duration-300 ease-out gap-2"
-                    title="Delete Episode"
+                    onClick={hasOpenRevision ? undefined : handleDeleteClick}
+                    disabled={hasOpenRevision}
+                    className={`flex-1 flex items-center justify-center h-10 px-2 rounded-full border transition-all duration-300 ease-out gap-2
+                        ${hasOpenRevision
+                            ? 'bg-transparent border-white/5 text-white/30 cursor-not-allowed'
+                            : 'bg-transparent hover:bg-red-500/20 text-red-400 border border-red-500/20'
+                        }
+                    `}
+                    title={hasOpenRevision ? "Cannot delete while changes are pending" : "Delete Episode"}
                 >
                     <span className="material-symbols-outlined text-[18px]">delete</span>
                     <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
@@ -105,9 +112,10 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
                     `}
                     title={
                         isApproved ? "Episode is locked"
-                            : hasOpenRevision ? "Review in progress"
-                                : !hasComments ? "Add comments to request changes"
-                                    : "Request Changes"
+                            : !isLatestVersion ? "Switch to latest version to request changes"
+                                : hasOpenRevision ? "Review in progress"
+                                    : !hasComments ? "Add comments to request changes"
+                                        : "Request Changes"
                     }
                 >
                     <span className="material-symbols-outlined text-[18px]">
@@ -121,9 +129,15 @@ export function EditorHeader({ episodeId, title, season = "Season 1", episodeNum
                 {/* Approve Button */}
                 {!isApproved ? (
                     <button
-                        onClick={() => setIsApproveModalOpen(true)}
-                        className="flex-1 flex items-center justify-center h-10 px-2 rounded-full bg-transparent hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all duration-300 ease-out hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] gap-2"
-                        title="Approve & Lock Episode"
+                        onClick={hasOpenRevision ? undefined : () => setIsApproveModalOpen(true)}
+                        disabled={hasOpenRevision}
+                        className={`flex-1 flex items-center justify-center h-10 px-2 rounded-full border transition-all duration-300 ease-out gap-2
+                            ${hasOpenRevision
+                                ? 'bg-transparent border-white/5 text-white/30 cursor-not-allowed'
+                                : 'bg-transparent hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400 hover:text-white hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+                            }
+                        `}
+                        title={hasOpenRevision ? "Cannot approve while changes are pending" : "Approve & Lock Episode"}
                     >
                         <span className="material-symbols-outlined text-[18px]">check_circle</span>
                         <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">

@@ -117,15 +117,7 @@ export function RevisionCard({ batch, index, totalBatches, active, onSeek }: Rev
                         </div>
                     </div>
 
-                    {/* Action Button */}
-                    <button className={cn(
-                        "transition-all text-xs font-bold px-3 py-1.5 rounded-lg",
-                        active
-                            ? "bg-[#ff4dc3]/10 text-[#ff4dc3] hover:bg-[#ff4dc3] hover:text-white border border-[#ff4dc3]/20"
-                            : "bg-white/5 text-white/40 hover:text-white border border-white/5"
-                    )}>
-                        {active ? "Update Status" : "Details"}
-                    </button>
+
                 </div>
 
                 {/* General Brief Box - Compact */}

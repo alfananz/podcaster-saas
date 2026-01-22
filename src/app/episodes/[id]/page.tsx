@@ -108,14 +108,12 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
 
         // 1. Trigger Exit Transition
         setIsClientReady(false); // Fades out the current player/workspace
+        setIsSwitchingVersion(true); // Show Overlay
 
-        // 2. Show Overlay
-        setIsSwitchingVersion(true);
-
-        // 3. Change Data Source (Delayed slightly to allow fade-out to start?)
-        // Actually, changing ID triggers new fetch immediately. 
-        // We want the fade-out to happen visually.
-        setSelectedVersionId(verId);
+        // 2. Delay Data Switch to allow Fade Out (Premium Feel)
+        setTimeout(() => {
+            setSelectedVersionId(verId);
+        }, 800);
     };
 
     // 4. THE LOADING GATE
@@ -146,7 +144,8 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
     const isBackendReady = episode.processingStage === 'completed' || episode.processingStage === 'revision_requested';
     // We show the overlay if the backend isn't ready OR if the client player hasn't reported ready yet.
     // Exception: If videoUrl is missing even if backend is ready, we might be stuck, but showOverlay handles covering it.
-    const showOverlay = !isBackendReady || !isClientReady;
+    // [MODIFIED] We supress this overlay if we are actively switching versions (showing the separate version overlay instead)
+    const showOverlay = (!isBackendReady || !isClientReady) && !isSwitchingVersion;
 
     return (
         <DashboardLayout>
@@ -176,7 +175,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                         <div className="flex flex-col items-center gap-1">
                             <h3 className="text-xl font-bold tracking-widest text-white uppercase">Switching Version</h3>
-                            <p className="text-primary text-xs font-mono tracking-[0.2em] animate-pulse">Re-aligning Neural Pathways...</p>
+                            <p className="text-primary text-xs font-mono tracking-[0.2em] animate-pulse">Loading video assets...</p>
                         </div>
                     </div>
                 </div>
@@ -196,6 +195,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                 episodeNumber="Episode 082"
                                 hasOpenRevision={!!visibleRevision} // [MODIFIED] Use filtered revision
                                 hasComments={comments && comments.length > 0} // [NEW] Pass comment state
+                                isLatestVersion={selectedVersionId === episode.currentVersionId} // [NEW]
                                 onRequestChanges={() => setIsRevisionModalOpen(true)}
                             />
                             {/* [NEW] Insert Version Controller into Header area or below it? 

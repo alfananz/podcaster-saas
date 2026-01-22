@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import { useUserRole } from '../../hooks/useUserRole';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
 import { CommentCard } from './CommentCard';
@@ -21,6 +22,7 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
     const clearAll = useMutation(api.comments.clearAll);
     const completeRevision = useMutation(api.episodes.completeRevision);
     const activeRevisionBatch = useQuery(api.episodes.getActiveRevisionBatch, { episodeId });
+    const { isAdmin } = useUserRole();
 
     const [newCommentText, setNewCommentText] = useState("");
     const [activeReplyId, setActiveReplyId] = useState<Id<"comments"> | null>(null);
@@ -273,7 +275,7 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
                 </div>
 
                 {/* Footer: Complete Button (Only for Revision Mode) */}
-                {isRevisionMode && (
+                {isRevisionMode && isAdmin && (
                     <div className="p-4 border-t border-red-500/10 bg-red-900/5 backdrop-blur-sm">
                         <button
                             onClick={handleCompleteRevision}

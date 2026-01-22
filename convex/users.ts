@@ -1,14 +1,10 @@
 import { query } from "./_generated/server";
+import { v } from "convex/values";
 
 export const current = query({
-    args: {},
-    handler: async (ctx) => {
-        // Mock user for development
-        return {
-            _id: "mock_user_id",
-            name: "Admin User",
-            role: "admin", // "admin" or "client"
-            avatar: "https://ui-avatars.com/api/?name=Admin+User&background=random",
-        };
+    args: { userId: v.optional(v.id("users")) },
+    handler: async (ctx, args) => {
+        if (!args.userId) return null;
+        return await ctx.db.get(args.userId);
     },
 });

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import { useUserRole } from '../../hooks/useUserRole';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
 
@@ -11,6 +12,7 @@ interface VersionControllerProps {
 }
 
 export function VersionController({ episodeId, currentVersionId, selectedVersionId, onVersionSelect }: VersionControllerProps) {
+    const { isAdmin } = useUserRole();
     const versions = useQuery(api.versions.list, { episodeId });
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
     const createVersion = useMutation(api.versions.create);
@@ -95,8 +97,8 @@ export function VersionController({ episodeId, currentVersionId, selectedVersion
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={isUploading}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all hover:bg-white/10 ${selectedVersionId === currentVersionId
-                        ? "border-primary/50 text-white bg-primary/5"
-                        : "border-white/20 text-slate-300"
+                    ? "border-primary/50 text-white bg-primary/5"
+                    : "border-white/20 text-slate-300"
                     } ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
                 {isUploading ? (
@@ -154,22 +156,24 @@ export function VersionController({ episodeId, currentVersionId, selectedVersion
                     </div>
 
                     {/* Upload Action */}
-                    <div className="p-2 border-t border-white/10 bg-white/[0.02]">
-                        <button
-                            onClick={handleUploadClick}
-                            className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-bold tracking-wider uppercase transition-colors flex items-center justify-center gap-2"
-                        >
-                            <span className="material-symbols-outlined text-[16px]">cloud_upload</span>
-                            Upload New Version
-                        </button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            accept="video/*"
-                            className="hidden"
-                        />
-                    </div>
+                    {isAdmin && (
+                        <div className="p-2 border-t border-white/10 bg-white/[0.02]">
+                            <button
+                                onClick={handleUploadClick}
+                                className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-bold tracking-wider uppercase transition-colors flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">cloud_upload</span>
+                                Upload New Version
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept="video/*"
+                                className="hidden"
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

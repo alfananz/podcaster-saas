@@ -1,4 +1,7 @@
 "use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useUserRole } from "../../hooks/useUserRole";
 
 import React from "react";
 import { useQuery } from "convex/react";
@@ -7,7 +10,18 @@ import Link from "next/link";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 export default function RevisionQueuePage() {
+    const { isClient, isLoading } = useUserRole();
+    const router = useRouter();
     const revisions = useQuery(api.revisions.listOpen);
+
+    useEffect(() => {
+        if (!isLoading && isClient) {
+            router.push("/");
+        }
+    }, [isClient, isLoading, router]);
+
+    if (isLoading) return null; // Or a loading spinner
+    if (isClient) return null; // Avoid flicker
 
     // Metrics
     const openTicketCount = revisions?.length || 0;

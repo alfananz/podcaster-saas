@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
+import { useUserRole } from '../../hooks/useUserRole';
 
 interface CommentCardProps {
     comment: any;
@@ -14,6 +15,7 @@ interface CommentCardProps {
 }
 
 export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onResolve, isThreadView = false }: CommentCardProps) {
+    const { isAdmin } = useUserRole();
     const toggleLike = useMutation(api.comments.toggleLike);
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState(comment.text);
@@ -117,12 +119,15 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
                         <>
                             <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="text-[10px] font-bold text-white/30 hover:text-white uppercase tracking-widest hover:bg-white/5 py-1 px-2 rounded-lg transition-colors">EDIT</button>
 
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onResolve(comment._id); }}
-                                className={`text-[10px] font-bold uppercase tracking-widest py-1 px-2 rounded-lg transition-colors ${comment.isResolved ? 'text-emerald-400 hover:text-white hover:bg-emerald-500/20' : 'text-white/30 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
-                            >
-                                {comment.isResolved ? "UNRESOLVE" : "RESOLVE"}
-                            </button>
+                            {/* [MODIFIED] Only Admins can resolve */}
+                            {isAdmin && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onResolve(comment._id); }}
+                                    className={`text-[10px] font-bold uppercase tracking-widest py-1 px-2 rounded-lg transition-colors ${comment.isResolved ? 'text-emerald-400 hover:text-white hover:bg-emerald-500/20' : 'text-white/30 hover:text-emerald-400 hover:bg-emerald-500/10'}`}
+                                >
+                                    {comment.isResolved ? "UNRESOLVE" : "RESOLVE"}
+                                </button>
+                            )}
 
                             <button onClick={(e) => { e.stopPropagation(); onDelete(comment._id); }} className="text-[10px] font-bold text-white/30 hover:text-red-400 uppercase tracking-widest hover:bg-red-500/10 py-1 px-2 rounded-lg transition-colors">DELETE</button>
                         </>

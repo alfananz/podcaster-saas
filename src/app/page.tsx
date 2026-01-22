@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,20 +15,35 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const { login } = useAuth();
+  const loginMutation = useMutation(api.auth.login);
+
+  // Auto-fill for demo purposes if desired, or keep empty
+  // const [username, setUsername] = useState("admin");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    // Mock login logic
-    setTimeout(() => {
-      if (username === "admin" && password === "admin") {
-        router.push("/dashboard");
+    try {
+      const userId = await loginMutation({ username, password });
+
+      if (userId) {
+        login(userId);
+        // Small delay for animation
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 500);
       } else {
-        setError("Invalid credentials. Try admin/admin");
+        setError("Invalid credentials.");
         setIsLoading(false);
       }
-    }, 1000);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (

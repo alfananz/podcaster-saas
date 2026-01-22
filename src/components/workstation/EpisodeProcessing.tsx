@@ -185,7 +185,7 @@ export function EpisodeProcessing({ stage = 'queued', progress, title, isResumin
 
                         {/* Footer Quote / Tip */}
                         <p className="text-white/30 text-xs font-mono text-center max-w-sm animate-pulse">
-                            "Initializing Mello Studio neural engine..."
+                            "Initializing Podcast OS engine..."
                         </p>
                     </>
                 )}

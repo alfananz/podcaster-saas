@@ -167,4 +167,13 @@ export default defineSchema({
         episodeId: v.id("episodes"),
         transcriptJson: v.any(),
     }).index("by_episode", ["episodeId"]),
+    users: defineTable({
+        name: v.string(),
+        username: v.string(),
+        password: v.string(),
+        role: v.union(v.literal("admin"), v.literal("client")),
+        avatar: v.string(),
+    })
+        .index("by_username", ["username"])
+        .index("by_username_password", ["username", "password"]),
 });

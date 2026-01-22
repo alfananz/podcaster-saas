@@ -272,7 +272,7 @@ const AVSyncPlayer = forwardRef<AVSyncPlayerRef, AVSyncPlayerProps>(({ episodeId
                 <div className={`absolute inset-0 z-50 bg-[#1a0e26] flex flex-col items-center justify-center transition-opacity duration-1000 ${isWaveformReady ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     <div className="flex items-center gap-4">
                         <div className="size-3 rounded-full bg-[#3C8CE7] animate-ping" />
-                        <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#3C8CE7] animate-pulse shadow-blue-500/50">Neural Audio Scanning...</span>
+                        <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#3C8CE7] animate-pulse shadow-blue-500/50">Scanning Audio Waveform...</span>
                     </div>
                 </div>
 

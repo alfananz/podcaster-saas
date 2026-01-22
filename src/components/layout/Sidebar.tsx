@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useModal } from '@/context/ModalContext';
+import { useUserRole } from '@/hooks/useUserRole';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -13,11 +14,13 @@ export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { openModal } = useModal();
+    const { isAdmin } = useUserRole();
 
     const links = [
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
         { href: "/episodes", label: "Episodes", icon: "video_library" },
-        { href: "/revisions", label: "Revisions", icon: "history_edu" },
+        // Conditional Revisions link
+        ...(isAdmin ? [{ href: "/revisions", label: "Revisions", icon: "history_edu" }] : []),
         { href: "/media", label: "Media Library", icon: "folder_open" },
         { href: "#", label: "Analytics", icon: "monitoring" },
     ];
@@ -62,7 +65,7 @@ export function Sidebar() {
             </nav>
 
             <div className="mt-auto pt-6 space-y-4">
-                
+
                 <div className="bg-white/5 rounded-3xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-2">
                         <p className="text-xs text-white/60">Storage used</p>
