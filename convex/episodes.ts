@@ -83,6 +83,7 @@ export const create = mutation({
                 storageId: args.storageId,
                 videoUrl: args.videoUrl, // [NEW]
                 audioUrl: args.audioUrl, // [NEW]
+                waveformPeaks: args.waveformPeaks, // [NEW] Propagate peaks to version v1.0
                 authorId: (await ctx.auth.getUserIdentity())?.subject || "admin",
                 status: "active",
                 uploadTime: Date.now(),

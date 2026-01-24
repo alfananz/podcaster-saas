@@ -53,6 +53,10 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
     // [NEW] Determine Data Source (Version vs Legacy Episode)
     const effectiveData = activeVersion || episode;
 
+    // [NEW] Intelligent Waveform Fallback: Check Version first, then Episode
+    // This ensures legacy episodes (where peaks are only on episode) still load instantly.
+    const effectiveWaveformPeaks = (activeVersion as any)?.waveformPeaks || (episode as any)?.waveformPeaks;
+
     // Determine Storage ID: Favor selectedVersion, fallback to episode (legacy)
     const effectiveStorageId = activeVersion?.storageId || episode?.storageId;
 
@@ -238,7 +242,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                             // No, we pass the generic media url to "videoUrl" prop, but let's rename or verify.
                                             // The prop is videoUrl, but it accepts audio files for <video> tag.
                                             videoUrl={videoUrl || (effectiveData as any)?.audioUrl}
-                                            waveformPeaks={(effectiveData as any).waveformPeaks}
+                                            waveformPeaks={effectiveWaveformPeaks}
                                             isAudioOnly={!!(effectiveData as any)?.audioUrl && !videoUrl} // [NEW] Detect Audio Mode
                                             onTimeUpdate={setCurrentTime}
                                             comments={comments || []}
