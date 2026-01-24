@@ -2,22 +2,24 @@
 
 import { action } from "../_generated/server";
 import { v } from "convex/values";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Re-usable S3 Client setup
 const s3Client = new S3Client({
     region: process.env.AWS_REGION!,
+    endpoint: process.env.AWS_ENDPOINT, // Support custom endpoints (MinIO, R2, etc.)
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
     },
+    forcePathStyle: !!process.env.AWS_ENDPOINT, // Often needed for local/compat S3
 });
 
 export const generateS3UploadUrl = action({
     args: {
-        contentType: v.string(), // e.g. "video/mp4"
-        fileType: v.union(v.literal("video"), v.literal("image"), v.literal("audio"), v.literal("json")), // Folder organization helper
+        contentType: v.string(),
+        fileType: v.union(v.literal("video"), v.literal("image"), v.literal("audio"), v.literal("json")),
     },
     handler: async (ctx, args) => {
         // 1. Validate Env
@@ -34,26 +36,32 @@ export const generateS3UploadUrl = action({
             json: "data"
         };
         const folder = folderMap[args.fileType] || "others";
-        const key = `${folder}/${timestamp}-${rand}`; // e.g. "videos/170000000-xyz123"
-        // Note: Client will need to append extension if they want, or we trust Content-Type.
-        // Actually, best practice is to include extension in key if possible, but for simplicity let's stick to unique IDs 
-        // OR rely on browser to handle mime types. 
-        // Let's keep it simple: "videos/TIMESTAMP-RANDOM" and allow any extension.
+        const key = `${folder}/${timestamp}-${rand}`;
 
         // 3. Command
         const command = new PutObjectCommand({
             Bucket: bucketName,
             Key: key,
             ContentType: args.contentType,
-            // ACL: "public-read", // REMOVED: User chose "Bucket Policy" approach, so no ACL needed per object.
         });
 
-        // 4. Generate URL
+        // 4. Generate URL (Signed)
         const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
-        // 5. Construct Public URL (Assuming Standard Virtual Hosted style or simple path style if region issues)
-        // Standard: https://BUCKET.s3.REGION.amazonaws.com/KEY
-        const publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+        // 5. Construct Public URL
+        let publicUrl: string;
+        if (process.env.AWS_ENDPOINT) {
+            // Custom Endpoint (e.g. MinIO, R2)
+            // Strategy: Use the endpoint + bucket + key
+            // Note: R2/MinIO handling varies. Trying standard path style: endpoint/bucket/key
+            const endpoint = process.env.AWS_ENDPOINT.replace(/\/$/, "");
+            publicUrl = `${endpoint}/${bucketName}/${key}`;
+        } else {
+            // Standard AWS
+            publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+        }
+
+        console.log(`[Files] Generated config: Key=${key}, Endpoint=${process.env.AWS_ENDPOINT || 'Standard AWS'}`);
 
         return {
             uploadUrl,
@@ -69,8 +77,6 @@ export const deleteS3Files = action({
     },
     handler: async (ctx, args) => {
         if (args.keys.length === 0) return;
-
-        const { DeleteObjectsCommand } = await import("@aws-sdk/client-s3");
 
         await s3Client.send(new DeleteObjectsCommand({
             Bucket: process.env.AWS_BUCKET_NAME!,

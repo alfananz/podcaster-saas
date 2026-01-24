@@ -42,33 +42,35 @@ export const list = query({
 export const create = mutation({
     args: {
         title: v.string(),
-        storageId: v.optional(v.id("_storage")), // Made optional to support draft flows, but pipeline requires it
+        storageId: v.optional(v.id("_storage")),
         episodeNumber: v.number(),
         description: v.optional(v.string()),
         language: v.optional(v.union(v.literal("en"), v.literal("ar"))),
-        waveformId: v.optional(v.id("_storage")), // [NEW] Pre-computed waveform
-        videoUrl: v.optional(v.string()), // [NEW] S3 URL
-        audioUrl: v.optional(v.string()), // [NEW] Support for Audio
-        waveformUrl: v.optional(v.string()), // [NEW] S3 URL
+        waveformId: v.optional(v.id("_storage")),
+        videoUrl: v.optional(v.string()),
+        audioUrl: v.optional(v.string()),
+        waveformUrl: v.optional(v.string()),
+        waveformPeaks: v.optional(v.any()), // [NEW] Direct peaks
     },
     handler: async (ctx, args) => {
         const episodeId = await ctx.db.insert("episodes", {
             title: args.title,
             storageId: args.storageId,
-            videoUrl: args.videoUrl, // [NEW]
-            audioUrl: args.audioUrl, // [NEW]
+            videoUrl: args.videoUrl,
+            audioUrl: args.audioUrl,
             episodeNumber: args.episodeNumber,
             description: args.description,
             date: new Date().toISOString(),
             status: "processing",
-            processingStage: "queued", // Initial Stage
+            processingStage: "queued",
             progress: 0,
             imageUrl: "https://placehold.co/600x400/1a1a1a/ffffff?text=Processing",
             duration: "00:00",
             issues: undefined,
-            language: args.language || "en", // Default to English
-            waveformId: args.waveformId, // [NEW] Store it
-            waveformUrl: args.waveformUrl, // [NEW]
+            language: args.language || "en",
+            waveformUrl: args.waveformUrl,
+            waveformPeaks: args.waveformPeaks, // [NEW]
+            authorId: (await ctx.auth.getUserIdentity())?.subject || "admin", // [NEW] Default to admin/derived
         });
 
         // Atomic Scheduling: If storageId OR videoUrl OR audioUrl is present
@@ -109,40 +111,78 @@ export const create = mutation({
 
 import { Id } from "./_generated/dataModel";
 
-// [NEW] Save Persistent Waveform
+// [NEW] Save Persistent Waveform (now stores peaks directly in Convex)
 export const saveWaveform = mutation({
     args: {
         episodeId: v.id("episodes"),
         storageId: v.optional(v.id("_storage")),
         waveformUrl: v.optional(v.string()),
+        waveformPeaks: v.optional(v.any()), // Direct peaks
     },
     handler: async (ctx, args) => {
         await ctx.db.patch(args.episodeId, {
             waveformId: args.storageId,
             waveformUrl: args.waveformUrl,
+            waveformPeaks: args.waveformPeaks,
         });
     },
 });
 
 export const get = query({
-    args: { id: v.string() }, // Accept string to handle potential raw ID from URL
+    args: { id: v.string() },
     handler: async (ctx, args) => {
-        // Safe ID conversion
         const episodeId = ctx.db.normalizeId("episodes", args.id);
         if (!episodeId) return null;
 
         const episode = await ctx.db.get(episodeId);
         if (!episode) return null;
 
-        // Get Waveform URL if it exists
+        // Resolve Version Data (Priority)
+        let videoUrl = episode.videoUrl;
+        let audioUrl = episode.audioUrl;
         let waveformUrl = episode.waveformUrl;
+        let waveformPeaks = episode.waveformPeaks;
+
+        if (episode.currentVersionId) {
+            const version = await ctx.db.get(episode.currentVersionId);
+            if (version) {
+                // Video
+                if (!videoUrl) {
+                    if (version.videoUrl) videoUrl = version.videoUrl;
+                    else if (version.storageId) videoUrl = await ctx.storage.getUrl(version.storageId) || undefined;
+                }
+                // Audio (if applicable)
+                if (!audioUrl) {
+                    if (version.audioUrl) audioUrl = version.audioUrl;
+                    // Version doesn't have explicit audiostorageId usually, shares storageId if audio-only?
+                    // Assuming storageId is the primary media.
+                }
+
+                // Waveform
+                if (!waveformPeaks && version.waveformPeaks) {
+                    waveformPeaks = version.waveformPeaks;
+                }
+                if (!waveformUrl) {
+                    if (version.waveformUrl) waveformUrl = version.waveformUrl;
+                    else if (version.waveformId) waveformUrl = await ctx.storage.getUrl(version.waveformId) || undefined;
+                }
+            }
+        }
+
+        // Legacy Fallbacks
+        if (!videoUrl && episode.storageId) {
+            videoUrl = await ctx.storage.getUrl(episode.storageId) || undefined;
+        }
         if (!waveformUrl && episode.waveformId) {
             waveformUrl = await ctx.storage.getUrl(episode.waveformId) || undefined;
         }
 
         return {
             ...episode,
-            waveformUrl, // [NEW] Return the signed URL for the waveform JSON
+            videoUrl,
+            audioUrl,
+            waveformUrl,
+            waveformPeaks,
         };
     },
 });

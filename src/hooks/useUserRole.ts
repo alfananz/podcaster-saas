@@ -1,13 +1,22 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
 
 export function useUserRole() {
-    const { userId, isLoading: isAuthLoading } = useAuth();
-    const user = useQuery(api.users.current, { userId: userId ?? undefined });
+    const [token, setToken] = useState<string | null>(null);
+    const [isTokenLoaded, setIsTokenLoaded] = useState(false);
 
-    // Extended loading state: Auth loading OR Query loading (if userId exists)
-    const isLoading = isAuthLoading || (!!userId && user === undefined);
+    useEffect(() => {
+        const stored = localStorage.getItem("mello_auth_token");
+        setToken(stored);
+        setIsTokenLoaded(true);
+    }, []);
+
+    // Pass token if we have it, otherwise skip or pass undefined
+    const args = isTokenLoaded ? { token: token || undefined } : "skip";
+    const user = useQuery(api.users.current, args === "skip" ? "skip" : args);
+
+    const isLoading = !isTokenLoaded || (user === undefined && !!token);
 
     return {
         isLoading,

@@ -43,6 +43,13 @@ export function ShowNotesPanel({
     const colorCyan = "#00E0FF";
 
     const [isCopied, setIsCopied] = React.useState(false);
+    const [copiedTag, setCopiedTag] = React.useState<string | null>(null);
+
+    const handleCopyTag = (tag: string) => {
+        navigator.clipboard.writeText(tag);
+        setCopiedTag(tag);
+        setTimeout(() => setCopiedTag(null), 2000);
+    };
 
     return (
         <aside className="w-full h-full flex flex-col border-l border-white/10 bg-[#0a0612]/50 backdrop-blur-xl shrink-0 overflow-y-auto">
@@ -104,7 +111,7 @@ export function ShowNotesPanel({
                                     <div>
                                         <p className="text-sm font-bold text-white group-hover:text-[#00E0FF] transition-colors">{chapter.title}</p>
                                         {chapter.description && (
-                                            <p className="text-xs text-white/40 mt-1 line-clamp-1">{chapter.description}</p>
+                                            <p className="text-xs text-white/40 mt-1">{chapter.description}</p>
                                         )}
                                     </div>
                                 </div>
@@ -127,12 +134,7 @@ export function ShowNotesPanel({
                             <div className="flex justify-between items-start mb-4">
                                 <span className="material-symbols-outlined text-[#ff00ff]">format_quote</span>
                                 <div className="flex gap-2">
-                                    <button className="w-7 h-7 bg-white/5 rounded flex items-center justify-center hover:bg-[#ff00ff]/20 transition-colors text-white">
-                                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                                    </button>
-                                    <button className="w-7 h-7 bg-white/5 rounded flex items-center justify-center hover:bg-[#ff00ff]/20 transition-colors text-white">
-                                        <span className="material-symbols-outlined text-[16px]">ios_share</span>
-                                    </button>
+
                                 </div>
                             </div>
                             <p className="text-base font-medium leading-relaxed italic text-white/90 mb-4">
@@ -147,7 +149,7 @@ export function ShowNotesPanel({
                         {/* Secondary Quotes */}
                         {keyTakeaways.slice(1, 3).map((takeaway, idx) => (
                             <div key={idx} className="mt-4 bg-white/[0.04] backdrop-blur-[20px] border border-white/5 rounded-lg p-4 flex items-center justify-between group hover:bg-white/10 transition-colors cursor-pointer">
-                                <p className="text-xs text-white/60 font-medium truncate pr-4">"{takeaway}"</p>
+                                <p className="text-xs text-white/60 font-medium pr-4">"{takeaway}"</p>
                                 <span className="material-symbols-outlined text-[16px] text-white/20 group-hover:text-[#ff00ff] transition-colors">arrow_forward_ios</span>
                             </div>
                         ))}
@@ -159,9 +161,17 @@ export function ShowNotesPanel({
                     <section className="pb-10">
                         <div className="flex flex-wrap gap-2">
                             {seoTags.map((tag, idx) => (
-                                <span key={idx} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-tighter text-white/50 hover:text-white hover:border-white/30 transition-colors">
-                                    {tag}
-                                </span>
+                                <button
+                                    key={idx}
+                                    onClick={() => handleCopyTag(tag)}
+                                    className={`px-3 py-1 border rounded-full text-[10px] font-bold uppercase tracking-tighter transition-all duration-300
+                                        ${copiedTag === tag
+                                            ? 'bg-[#00E0FF] border-[#00E0FF] text-black scale-105'
+                                            : 'bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/30'
+                                        }`}
+                                >
+                                    {copiedTag === tag ? 'Copied!' : tag}
+                                </button>
                             ))}
                         </div>
                     </section>

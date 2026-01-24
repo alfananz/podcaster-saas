@@ -6,6 +6,7 @@ import { twMerge } from 'tailwind-merge';
 import { useModal } from '@/context/ModalContext';
 import { useUserRole } from '@/hooks/useUserRole';
 
+
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
 }
@@ -21,13 +22,19 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const { openModal } = useModal();
-    const { isAdmin } = useUserRole();
+    const { isAdmin, user, isLoading, isClient } = useUserRole();
+
+
+
 
     const links = [
         { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
         { href: "/episodes", label: "Episodes", icon: "video_library" },
         // Conditional Revisions link
-        ...(isAdmin ? [{ href: "/revisions", label: "Revisions", icon: "history_edu" }] : []),
+        ...(isAdmin ? [
+            { href: "/revisions", label: "Revisions", icon: "history_edu" },
+            { href: "/admin/clients", label: "Clients", icon: "group" }
+        ] : []),
         //   { href: "/media", label: "Media Library", icon: "folder_open" },
         //  { href: "#", label: "Analytics", icon: "monitoring" },
     ];
@@ -145,7 +152,7 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
                     <Link href="/settings" className="size-10 rounded-full border-2 border-primary/40 p-0.5 cursor-pointer block hover:border-primary transition-colors shrink-0">
                         <img
                             className="w-full h-full rounded-full object-cover"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuLkBcC5FfT_jSF5Ogr-KOqQxr5Ool8Bj8cMH63lGs9_giuMNPvlyF0gRM1Mkf4l1JXMmuT5Ihk8PMSwQoiToA4hoaHVAzUQgdyxhmroJF6-mCli4xQlylHjWjKM3HYJNekcc4u9Y4VoY3ZJL4e3PlsZ8AWMvzENqBuIW-PjcZti5qupfwmxEAwaYyzd443iLxbex5uJJxwox6OzUOu9rDpkFgUoIvR3Lf-t9QlX8VSQ9ElfWOkByx2J1-f-R5MzBG-F5-FV17v8n7"
+                            src={user?.image || "https://ui-avatars.com/api/?name=User&background=random"}
                             alt="User profile"
                         />
                     </Link>
@@ -157,8 +164,8 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
                             exit={{ opacity: 0 }}
                             className="overflow-hidden"
                         >
-                            <p className="text-sm font-bold truncate">Alex Rivera</p>
-                            <p className="text-[10px] text-white/40 uppercase tracking-tighter truncate">Premium Account</p>
+                            <p className="text-sm font-bold truncate">{user?.name || "Guest"}</p>
+                            <p className="text-[10px] text-white/40 uppercase tracking-tighter truncate">{user?.role || "Visitor"}</p>
                         </motion.div>
                     )}
 
@@ -182,7 +189,7 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
                         <span className="font-medium group-hover:text-red-400 whitespace-nowrap">Log Out</span>
                     )}
                 </button>
-            </div>
-        </motion.aside>
+            </div >
+        </motion.aside >
     );
 }

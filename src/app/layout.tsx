@@ -19,7 +19,6 @@ export const metadata: Metadata = {
 };
 
 import { ModalProvider } from "@/context/ModalContext";
-import { AuthProvider } from "@/context/AuthContext";
 
 export default function RootLayout({
   children,
@@ -36,11 +35,9 @@ export default function RootLayout({
       </head>
       <body className={`${epilogue.variable} ${publicSans.variable} font-display antialiased bg-background-light dark:bg-background-dark text-white min-h-screen aurora-bg selection:bg-primary/30 selection:text-white`}>
         <ConvexClientProvider>
-          <AuthProvider>
-            <ModalProvider>
-              {children}
-            </ModalProvider>
-          </AuthProvider>
+          <ModalProvider>
+            {children}
+          </ModalProvider>
         </ConvexClientProvider>
       </body>
     </html>

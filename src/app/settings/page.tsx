@@ -1,8 +1,43 @@
 "use client";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function SettingsPage() {
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [isUpdating, setIsUpdating] = useState(false);
+    const updatePassword = useMutation(api.users.updatePassword);
+
+    const handleUpdatePassword = async () => {
+        if (!currentPassword || !newPassword) return;
+
+        const token = localStorage.getItem("mello_auth_token");
+        if (!token) {
+            alert("You must be logged in to update your password.");
+            return;
+        }
+
+        setIsUpdating(true);
+        try {
+            await updatePassword({
+                currentPassword,
+                newPassword,
+                token
+            });
+            alert("Password updated successfully");
+            setCurrentPassword("");
+            setNewPassword("");
+        } catch (error) {
+            console.error(error);
+            alert("Failed to update password: " + (error as any).message);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
     return (
         <DashboardLayout>
             <div className="max-w-4xl mx-auto">
@@ -68,11 +103,32 @@ export default function SettingsPage() {
                             <div className="space-y-6">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-sm font-medium opacity-70">Current Password</label>
-                                    <input className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:ring-1 focus:ring-primary outline-none" placeholder="••••••••••••" type="password" />
+                                    <input
+                                        className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:ring-1 focus:ring-primary outline-none"
+                                        placeholder="••••••••••••"
+                                        type="password"
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-sm font-medium opacity-70">New Password</label>
-                                    <input className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:ring-1 focus:ring-primary outline-none" placeholder="Min. 12 characters" type="password" />
+                                    <input
+                                        className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:ring-1 focus:ring-primary outline-none"
+                                        placeholder="Min. 12 characters"
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                        onClick={handleUpdatePassword}
+                                        disabled={isUpdating}
+                                    >
+                                        {isUpdating ? "Updating..." : "Update Password"}
+                                    </button>
                                 </div>
                             </div>
 
@@ -144,7 +200,7 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-            </div>
-        </DashboardLayout>
+            </div >
+        </DashboardLayout >
     );
 }

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,8 +14,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login } = useAuth();
-  const loginMutation = useMutation(api.auth.login);
+  const loginProps = useMutation(api.users.login);
 
   // Auto-fill for demo purposes if desired, or keep empty
   // const [username, setUsername] = useState("admin");
@@ -27,21 +25,26 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const userId = await loginMutation({ username, password });
+      // Race the login against a timeout
+      const result = await Promise.race([
+        loginProps({ email: username, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out. Please check your connection.")), 10000)
+        )
+      ]) as any;
 
-      if (userId) {
-        login(userId);
-        // Small delay for animation
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 500);
-      } else {
-        setError("Invalid credentials.");
-        setIsLoading(false);
+      if (!result || !result.token) {
+        throw new Error("Invalid response from server");
       }
-    } catch (err) {
+
+      // Save token
+      localStorage.setItem("mello_auth_token", result.token);
+
+      // Redirect
+      window.location.href = "/dashboard";
+    } catch (err: any) {
       console.error(err);
-      setError("Something went wrong. Please try again.");
+      setError(err.message || "Invalid credentials.");
       setIsLoading(false);
     }
   };
@@ -123,7 +126,7 @@ export default function LoginPage() {
                   placeholder="Email or Username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.trim())}
                   required
                 />
               </div>
@@ -216,14 +219,8 @@ export default function LoginPage() {
       {/* Navigation Overlay */}
       <nav className="fixed top-0 left-0 w-full p-8 flex justify-between items-center pointer-events-none">
         <div className="pointer-events-auto">
-          <div className="text-white/20 text-[10px] font-black tracking-[0.4em] uppercase -rotate-90 origin-left translate-y-20">
-            Mello © 2026
-          </div>
         </div>
-        <div className="pointer-events-auto flex gap-8">
-          <a className="text-white/30 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors" href="#">Support</a>
-          <a className="text-white/30 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors" href="#">Legal</a>
-        </div>
+
       </nav>
     </div>
   );

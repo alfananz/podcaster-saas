@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+
 export default defineSchema({
     episodes: defineTable({
         title: v.string(),
@@ -60,9 +61,12 @@ export default defineSchema({
             v.literal("revision_requested")
         )),
         language: v.optional(v.union(v.literal("en"), v.literal("ar"))), // [NEW] Language Preference
-        waveformId: v.optional(v.id("_storage")), // [NEW] Persistent Waveform Storage ID
-        waveformUrl: v.optional(v.string()), // [NEW] S3 URL for waveform
-    }),
+        waveformId: v.optional(v.id("_storage")), // [LEGACY]
+        waveformUrl: v.optional(v.string()), // [LEGACY]
+        waveformPeaks: v.optional(v.any()), // [NEW] Direct peaks storage
+        authorId: v.optional(v.string()), // [NEW] Link to User (Client/Admin)
+    })
+        .index("by_author", ["authorId"]),
 
     versions: defineTable({
         episodeId: v.id("episodes"),
@@ -85,7 +89,8 @@ export default defineSchema({
             v.literal("failed")
         )),
         waveformId: v.optional(v.id("_storage")),
-        waveformUrl: v.optional(v.string()), // [NEW] S3 URL for waveform
+        waveformUrl: v.optional(v.string()), // [LEGACY]
+        waveformPeaks: v.optional(v.any()), // [NEW] Direct peaks storage
 
         // [NEW] Per-Version AI Data
         transcript: v.optional(v.string()),
@@ -173,11 +178,16 @@ export default defineSchema({
 
     users: defineTable({
         name: v.string(),
-        username: v.string(),
+        email: v.string(),
         password: v.string(),
         role: v.union(v.literal("admin"), v.literal("client")),
-        avatar: v.string(),
-    })
-        .index("by_username", ["username"])
-        .index("by_username_password", ["username", "password"]),
+        avatar: v.optional(v.string()),
+    }).index("by_email", ["email"]),
+    // users: defineTable(v.any()), // Reverted
+
+    sessions: defineTable({
+        userId: v.id("users"),
+        token: v.string(), // The session ID string we send to frontend
+        expiresAt: v.number(),
+    }).index("by_token", ["token"]),
 });

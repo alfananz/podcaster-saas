@@ -97,7 +97,7 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                 feedback
             });
             setIsRevisionModalOpen(false);
-            console.log("Revision Requested:", feedback);
+
         } catch (error: any) {
             console.error("Failed to request revision:", error);
             // Simple alert for now, or use a toast if available
@@ -238,13 +238,13 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                                             // No, we pass the generic media url to "videoUrl" prop, but let's rename or verify.
                                             // The prop is videoUrl, but it accepts audio files for <video> tag.
                                             videoUrl={videoUrl || (effectiveData as any)?.audioUrl}
-                                            waveformUrl={(effectiveData as any).waveformUrl}
+                                            waveformPeaks={(effectiveData as any).waveformPeaks}
                                             isAudioOnly={!!(effectiveData as any)?.audioUrl && !videoUrl} // [NEW] Detect Audio Mode
                                             onTimeUpdate={setCurrentTime}
                                             comments={comments || []}
                                             title={episode.title}
                                             onReady={() => {
-                                                console.log("AVSyncPlayer Ready: Lifting Pre-load Gate.");
+
                                                 setIsClientReady(true);
                                                 setIsSwitchingVersion(false);
                                             }}

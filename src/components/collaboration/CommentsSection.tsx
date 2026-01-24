@@ -189,10 +189,14 @@ export function CommentsSection({ episodeId, versionId, currentTime, onSeek, com
         // 1. Map all to nodes
         const nodeMap = new Map<string, CommentNode>();
         comments.forEach(c => {
+            // Safe user extraction because schema was flattened
+            // @ts-ignore
+            const user = c.user || { name: c.name, avatar: c.avatar, role: c.role };
+
             nodeMap.set(c._id, {
                 _id: c._id,
                 text: c.text,
-                user: c.user,
+                user: user,
                 creationTime: c._creationTime,
                 formattedTime: formatTime(c.timestamp), // This formatTime is for the SEEK TIMESTAMP, not creation date.
                 data: c,

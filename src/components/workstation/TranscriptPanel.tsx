@@ -148,7 +148,7 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className,
         // 3. Find active element
         let activeEl = container.querySelector('[data-active="true"]') as HTMLElement;
 
-        // Fallback for gaps
+        // Fallback for gaps - find closest word to current time
         if (!activeEl && segments.length > 0) {
             const closest = segments.reduce((prev, curr) =>
                 Math.abs(curr.start - currentTime) < Math.abs(prev.start - currentTime) ? curr : prev
@@ -160,29 +160,30 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className,
 
         if (!activeEl) return;
 
-        // 4. Calculate Position relative to container
-        const containerRect = container.getBoundingClientRect();
-        const elRect = activeEl.getBoundingClientRect();
+        // 4. Get word identity to track if we've already scrolled to this word
         const activeWordStart = activeEl.dataset.start || null;
 
-        if (isSeek) {
-            // FORCE CENTER on Seek
-            activeEl.scrollIntoView({ behavior: "auto", block: "center" });
-            lastScrolledRef.current = activeWordStart;
-        } else {
-            // [LAZY FOLLOW] Only scroll if element is leaving the "Safe Zone"
-            const relativeTop = elRect.top - containerRect.top;
-            const safeZoneTop = containerRect.height * 0.3;     // Top 30% border
-            const safeZoneBottom = containerRect.height * 0.7;  // Bottom 70% border
+        // 5. Only scroll if this is a new word (avoid redundant scrolls)
+        if (activeWordStart === lastScrolledRef.current && !isSeek) return;
 
-            const isAbove = relativeTop < safeZoneTop;
-            const isBelow = (elRect.bottom - containerRect.top) > safeZoneBottom;
 
-            if ((isAbove || isBelow) && activeWordStart !== lastScrolledRef.current) {
-                activeEl.scrollIntoView({ behavior: "smooth", block: "center" });
-                lastScrolledRef.current = activeWordStart;
-            }
-        }
+        // 6. Calculate scroll position to center the active element
+        // specific generic way to get relative top regardless of offsetParent
+        const activeRect = activeEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const relativeTop = activeRect.top - containerRect.top;
+        const currentScroll = container.scrollTop;
+
+        // Target is: currentScroll + relativeTop - (half container) + (half element)
+        const targetScroll = currentScroll + relativeTop - (container.clientHeight / 2) + (activeEl.clientHeight / 2);
+
+        // 7. Scroll with appropriate behavior
+        container.scrollTo({
+            top: Math.max(0, targetScroll),
+            behavior: isSeek ? "auto" : "smooth"
+        });
+
+        lastScrolledRef.current = activeWordStart;
     }, [currentTime, segments]);
 
     // Keep hover listeners simple
@@ -360,9 +361,9 @@ export function TranscriptPanel({ segments = [], currentTime, onSeek, className,
                                                     data-active={isWordActive} // [NEW] Track active word
                                                     data-start={word.start} // [NEW] Track active word identity
                                                     className={cn(
-                                                        "transition-all duration-100 cursor-pointer rounded px-0.5 inline-block mx-[1px]",
+                                                        "cursor-pointer rounded px-0.5 inline mx-[1px]", // [MODIFIED] Removed inline-block and transition-all
                                                         isWordActive
-                                                            ? cn("z-10 relative", speakerColor.highlight, "bg-white/5") // Removed scale-110
+                                                            ? cn("z-10 relative box-decoration-clone", speakerColor.highlight, "bg-white/5")
                                                             : isActiveBlock ? "text-white hover:text-white hover:bg-white/10" : "text-white/60 hover:text-white"
                                                     )}
                                                 >

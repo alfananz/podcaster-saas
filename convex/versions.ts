@@ -64,13 +64,8 @@ export const list = query({
             .order("desc") // Latest first
             .collect();
 
-        // Enrich with waveformUrl and videoUrl (if S3)
+        // Enrich with videoUrl (if S3) - waveformPeaks is stored directly now
         const enriched = await Promise.all(versions.map(async (v) => {
-            let waveformUrl = v.waveformUrl;
-            if (!waveformUrl && v.waveformId) {
-                waveformUrl = await ctx.storage.getUrl(v.waveformId) || undefined;
-            }
-
             // Ensure videoUrl is resolved if legacy
             let videoUrl = v.videoUrl;
             if (!videoUrl && v.storageId) {
@@ -79,7 +74,6 @@ export const list = query({
 
             return {
                 ...v,
-                waveformUrl,
                 videoUrl,
             };
         }));
@@ -185,13 +179,11 @@ export const updateEnrichment = mutation({
 export const saveWaveform = mutation({
     args: {
         versionId: v.id("versions"),
-        storageId: v.optional(v.id("_storage")),
-        waveformUrl: v.optional(v.string()),
+        waveformPeaks: v.optional(v.any()),
     },
     handler: async (ctx, args) => {
         await ctx.db.patch(args.versionId, {
-            waveformId: args.storageId,
-            waveformUrl: args.waveformUrl,
+            waveformPeaks: args.waveformPeaks,
         });
     },
 });

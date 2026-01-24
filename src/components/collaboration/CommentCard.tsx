@@ -44,9 +44,16 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
     };
 
     // Styling: "Bubble" Design
-    const isMe = comment.user.name === "Me";
-    const role = comment.user.role || (isAdmin ? 'admin' : 'client'); // Fallback for legacy
-    const isClient = role === 'client';
+    // @ts-ignore
+    const userName = comment.name || comment.user?.name;
+    // @ts-ignore
+    const userAvatar = comment.avatar || comment.user?.avatar;
+    // @ts-ignore
+    const userRole = comment.role || comment.user?.role || (isAdmin ? 'admin' : 'client');
+
+    const isMe = userName === "Me";
+    // const role = comment.user.role || (isAdmin ? 'admin' : 'client'); // Fallback for legacy
+    const isClient = userRole === 'client';
     const accentColor = isClient ? 'text-[#33bbff]' : 'text-[#ff3399]';
     const borderColor = isClient ? 'border-[#33bbff]/50' : 'border-[#ff3399]/50';
     const glowColor = isClient ? 'shadow-[0_0_30px_rgba(51,187,255,0.2)]' : 'shadow-[0_0_30px_rgba(255,51,153,0.2)]';
@@ -67,10 +74,10 @@ export function CommentCard({ comment, onSeek, onReply, onEdit, onDelete, onReso
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                     <div className={`size-8 rounded-xl bg-cover border shadow-sm ${isClient ? 'border-[#33bbff]/30 shadow-[#33bbff]/20' : 'border-[#ff3399]/30 shadow-[#ff3399]/20'}`} style={{
-                        backgroundImage: `url(${comment.user.avatar || `https://ui-avatars.com/api/?name=${comment.user.name}&background=random`})`
+                        backgroundImage: `url(${userAvatar || `https://ui-avatars.com/api/?name=${userName}&background=random`})`
                     }}></div>
                     <div>
-                        <span className="text-xs font-bold text-white tracking-wide block">{comment.user.name}</span>
+                        <span className="text-xs font-bold text-white tracking-wide block">{userName}</span>
                         <span className={`text-[9px] uppercase tracking-wider font-bold ${accentColor} opacity-80`}>
                             {isClient ? 'Client' : 'Engineer'}
                         </span>
